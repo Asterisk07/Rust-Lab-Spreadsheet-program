@@ -62,15 +62,6 @@ COMMANDS:
   :h              → Open help menu  
   q               → Quit  
 
-FORMAT COMMANDS:  
-  :b           → Bold current character  
-  :i           → Italicize current character  
-  :u           → Underline current character  
-  :color red   → Change text color to red  
-  :color green → Change text color to green  
-  :color blue  → Change text color to blue  
-  :reset       → Remove formatting  
-
 ────────────────────────  
 Press ESC to return to the spreadsheet.  
 ```
