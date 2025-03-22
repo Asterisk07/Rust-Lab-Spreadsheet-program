@@ -16,7 +16,7 @@ The project includes a Vim-like text editor with 3 versions:
     - Added :h to simple version
     - Cudnt test other features whether they broke or not.
    ```bash
-   cargo run --bin main_simple
+   cargo run --bin main_simple_help
    ```  
 
 2. **Advanced version:**  
