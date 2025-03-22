@@ -1,0 +1,19 @@
+[package]
+name = "rust_spreadsheet"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+crossterm = "0.28.1"
+
+[[bin]]
+name = "main_simple"
+path = "src/main_simple.rs"
+
+[[bin]]
+name = "main_simple_help"
+path = "src/main_simple_help.rs"
+
+[[bin]]
+name = "main_new"
+path = "src/main_new.rs"
