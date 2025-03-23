@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 crossterm = "0.28.1"
+plotters = "0.3.5"
+
 
 [[bin]]
 name = "main_simple"
@@ -17,3 +19,7 @@ path = "src/main_simple_help.rs"
 [[bin]]
 name = "main_new"
 path = "src/main_new.rs"
+
+[[bin]]
+name = "chart"
+path = "src/chart.rs"
