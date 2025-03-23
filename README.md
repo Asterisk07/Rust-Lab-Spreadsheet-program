@@ -23,6 +23,10 @@ The project includes a Vim-like text editor with 3 versions:
    ```bash
    cargo run --bin main_new
    ```  
+3. **Advanced version:**  
+   ```bash
+   cargo chart --bin chart
+   ```  
 
 💡 *Note:*  
 - To see list of features, type : 
