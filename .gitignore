@@ -5,6 +5,8 @@ target/
 
 # temp/experiemtns
 src/try*
+temp_versions/*
+*.html
 
 # Charts in root
 /*.png

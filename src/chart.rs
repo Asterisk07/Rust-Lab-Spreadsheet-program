@@ -1,139 +1,191 @@
-use plotters::prelude::*;
-use std::f64::consts::PI;
+use crossterm::{
+    cursor,
+    event::{self, KeyCode, KeyEvent},
+    execute,
+    style::{PrintStyledContent, Stylize},
+    terminal,
+};
+use std::{
+    fs,
+    io::{Write, stdout},
+    time::Duration,
+};
 
-// use plotters::prelude::*;
-// use std::f64::consts::PI;
+fn main() {
+    let filename = "sample.txt";
+    let content = fs::read_to_string(filename).expect("Failed to read file");
+    let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
 
-fn draw_pie_chart(file_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let root = BitMapBackend::new(file_name, (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
+    let mut stdout = stdout();
+    terminal::enable_raw_mode().unwrap();
 
-    let center = (400, 300);
-    let radius = 150;
+    let mut cursor_x = 0;
+    let mut cursor_y = 0;
+    let mut insert_mode = false;
+    let mut help_mode = false; // Help menu toggle
+    let mut command_buffer = String::new();
 
-    // Data: percentages
-    let data = vec![("A", 35.0), ("B", 25.0), ("C", 20.0), ("D", 20.0)];
-    let total: f64 = data.iter().map(|(_, v)| *v).sum();
+    redraw_screen(&mut stdout, &lines, cursor_x, cursor_y, insert_mode);
 
-    let mut start_angle = 0.0;
+    loop {
+        if let Ok(true) = event::poll(Duration::from_millis(500)) {
+            if let Ok(event::Event::Key(KeyEvent { code, .. })) = event::read() {
+                if help_mode {
+                    if code == KeyCode::Esc {
+                        help_mode = false;
+                        redraw_screen(&mut stdout, &lines, cursor_x, cursor_y, insert_mode);
+                    }
+                    continue;
+                }
 
-    for (i, (label, value)) in data.iter().enumerate() {
-        let angle = 2.0 * PI * (*value / total);
-        let end_angle = start_angle + angle;
+                match code {
+                    // 🔹 Insert Mode Toggle
+                    KeyCode::Char('i') if !insert_mode => insert_mode = true,
+                    KeyCode::Esc if insert_mode => insert_mode = false,
 
-        let color = Palette99::pick(i).mix(0.8);
+                    // 🔹 Move Cursor
+                    KeyCode::Left if cursor_x > 0 => cursor_x -= 1,
+                    KeyCode::Right if cursor_x < lines[cursor_y].len() => cursor_x += 1,
+                    KeyCode::Up if cursor_y > 0 => cursor_y -= 1,
+                    KeyCode::Down if cursor_y < lines.len() - 1 => cursor_y += 1,
 
-        // Draw the pie slice
-        root.draw(&PathElement::new(
-            vec![
-                center,
-                (
-                    center.0 + (radius as f64 * start_angle.cos()) as i32,
-                    center.1 - (radius as f64 * start_angle.sin()) as i32,
-                ),
-                (
-                    center.0 + (radius as f64 * end_angle.cos()) as i32,
-                    center.1 - (radius as f64 * end_angle.sin()) as i32,
-                ),
-            ],
-            ShapeStyle {
-                color: color.to_rgba(),
-                filled: true,
-                stroke_width: 1,
-            },
-        ))?;
+                    // 🔹 Insert Mode Typing
+                    KeyCode::Char(c) if insert_mode => {
+                        lines[cursor_y].insert(cursor_x, c);
+                        cursor_x += 1;
+                    }
 
-        // Add text labels
-        let label_x = center.0 + (radius as f64 * (start_angle + angle / 2.0).cos() * 0.7) as i32;
-        let label_y = center.1 - (radius as f64 * (start_angle + angle / 2.0).sin() * 0.7) as i32;
+                    // 🔹 Backspace (In Insert Mode)
+                    KeyCode::Backspace if insert_mode && cursor_x > 0 => {
+                        lines[cursor_y].remove(cursor_x - 1);
+                        cursor_x -= 1;
+                    }
 
-        root.draw(&Text::new(
-            format!("{}: {:.1}%", label, value),
-            (label_x, label_y),
-            ("sans-serif", 20.0).into_font().color(&BLACK),
-        ))?;
+                    // 🔹 Command Mode (Start Typing `:`)
+                    KeyCode::Char(':') if !insert_mode => {
+                        command_buffer.clear();
+                        print!(":");
+                        stdout.flush().unwrap();
 
-        start_angle = end_angle;
+                        while let Ok(event::Event::Key(KeyEvent { code, .. })) = event::read() {
+                            match code {
+                                KeyCode::Enter => break,
+                                KeyCode::Backspace => {
+                                    command_buffer.pop();
+                                }
+                                KeyCode::Char(c) => command_buffer.push(c),
+                                _ => {}
+                            }
+                        }
+
+                        // 🔹 Open Help Menu if `:h` is entered
+                        if command_buffer.trim() == "h" {
+                            help_mode = true;
+                            draw_help_menu(&mut stdout);
+                            continue;
+                        }
+
+                        // 🔹 Print chart if `:p` is entered
+                        if command_buffer.trim() == "p" {
+                            print_chart(&lines);
+                            continue;
+                        }
+                    }
+
+                    // 🔹 Quit (`q`)
+                    KeyCode::Char('q') => break,
+
+                    _ => {}
+                }
+
+                // Redraw after any change
+                redraw_screen(&mut stdout, &lines, cursor_x, cursor_y, insert_mode);
+            }
+        }
     }
 
-    println!("Pie chart saved to {}", file_name);
-    Ok(())
+    terminal::disable_raw_mode().unwrap();
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Line Chart
-    let root = BitMapBackend::new("line_chart.png", (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    let mut chart = ChartBuilder::on(&root)
-        .caption("Line Chart", ("sans-serif", 40))
-        .build_cartesian_2d(0f32..10f32, 0f32..100f32)?;
+// 🔹 Help Menu Display Function
+fn draw_help_menu(stdout: &mut std::io::Stdout) {
+    execute!(
+        stdout,
+        terminal::Clear(terminal::ClearType::All),
+        cursor::MoveTo(0, 0)
+    )
+    .unwrap();
 
-    chart.configure_mesh().draw()?;
-    chart.draw_series(LineSeries::new(
-        (0..10).map(|x| (x as f32, (x * x) as f32)),
-        &BLUE,
-    ))?;
-    println!("Line chart saved!");
+    let help_text = [
+        "📖 Spreadsheet Help Menu",
+        "────────────────────────",
+        "MOVEMENT:",
+        "  ←, →, ↑, ↓   → Move cursor",
+        "",
+        "EDITING:",
+        "  i           → Enter insert mode",
+        "  ESC         → Exit insert mode",
+        "",
+        "COMMANDS:",
+        "  :p          → Print chart",
+        "  :h          → Open help menu",
+        "  q           → Quit",
+        "",
+        "────────────────────────",
+        "Press ESC to return to the spreadsheet.",
+    ];
 
-    // Bar Chart
-    let root = BitMapBackend::new("bar_chart.png", (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    let mut chart = ChartBuilder::on(&root)
-        .caption("Bar Chart", ("sans-serif", 40))
-        .build_cartesian_2d(0..5, 0..100)?;
+    for (i, line) in help_text.iter().enumerate() {
+        execute!(stdout, cursor::MoveTo(0, i as u16)).unwrap();
+        println!("{}", line);
+    }
 
-    chart.configure_mesh().draw()?;
-    chart.draw_series((0..5).map(|x| {
-        let y = (x * x) + 10;
-        Rectangle::new([(x, 0), (x + 1, y)], BLUE.filled())
-    }))?;
-    println!("Bar chart saved!");
+    stdout.flush().unwrap();
+}
 
-    // Pie Chart
-    draw_pie_chart("pie_chart.png")?;
+// 🔹 Print chart based on line lengths
+fn print_chart(lines: &[String]) {
+    println!("\n📊 Chart of Line Lengths:");
+    println!("────────────────────────");
+    for (i, line) in lines.iter().enumerate() {
+        let length = line.len();
+        println!("Line {}: {}", i + 1, "*".repeat(length));
+    }
+    println!("\n");
+}
 
-    // Scatter Plot
-    let root = BitMapBackend::new("scatter_plot.png", (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    let mut chart = ChartBuilder::on(&root)
-        .caption("Scatter Plot", ("sans-serif", 40))
-        .build_cartesian_2d(0f32..10f32, 0f32..100f32)?;
+// 🔹 Redraw Screen Function
+fn redraw_screen(
+    stdout: &mut std::io::Stdout,
+    lines: &[String],
+    cursor_x: usize,
+    cursor_y: usize,
+    insert_mode: bool,
+) {
+    execute!(
+        stdout,
+        terminal::Clear(terminal::ClearType::All),
+        cursor::MoveTo(0, 0)
+    )
+    .unwrap();
 
-    chart.configure_mesh().draw()?;
-    chart.draw_series((0..10).map(|x| Circle::new((x as f32, (x * x) as f32), 5, RED.filled())))?;
-    println!("Scatter plot saved!");
+    for (y, line) in lines.iter().enumerate() {
+        execute!(stdout, cursor::MoveTo(0, y as u16)).unwrap();
+        print!("{}", line);
 
-    // Histogram
-    let root = BitMapBackend::new("histogram.png", (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    let mut chart = ChartBuilder::on(&root)
-        .caption("Histogram", ("sans-serif", 40))
-        .build_cartesian_2d(0..10, 0..10)?;
+        // Show cursor
+        if y == cursor_y {
+            execute!(stdout, cursor::MoveTo(cursor_x as u16, y as u16)).unwrap();
+        }
+    }
 
-    chart.configure_mesh().draw()?;
-    chart.draw_series((0..10).map(|x| Rectangle::new([(x, 0), (x + 1, x % 5)], GREEN.filled())))?;
-    println!("Histogram saved!");
+    // Mode indicator
+    execute!(stdout, cursor::MoveTo(0, lines.len() as u16 + 1)).unwrap();
+    if insert_mode {
+        print!("-- INSERT --");
+    } else {
+        print!("NORMAL MODE");
+    }
 
-    // Combined Chart
-    let root = BitMapBackend::new("combined_chart.png", (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    let mut chart = ChartBuilder::on(&root)
-        .caption("Combined Chart", ("sans-serif", 40))
-        .build_cartesian_2d(0f32..10f32, 0f32..100f32)?;
-
-    chart.configure_mesh().draw()?;
-
-    // Line series
-    chart.draw_series(LineSeries::new(
-        (0..10).map(|x| (x as f32, (x * x) as f32)),
-        &BLUE,
-    ))?;
-
-    // Scatter series
-    chart
-        .draw_series((0..10).map(|x| Circle::new((x as f32, (x * 10) as f32), 5, RED.filled())))?;
-
-    println!("Combined chart saved!");
-
-    Ok(())
+    stdout.flush().unwrap();
 }

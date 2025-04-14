@@ -5,7 +5,9 @@ edition = "2024"
 
 [dependencies]
 crossterm = "0.28.1"
-plotters = "0.3.5"
+plotters = "0.3.5" 
+plotly = "0.12.1"  # or the latest version available
+showata = "0.1" # for interactive
 
 
 [[bin]]
@@ -23,3 +25,7 @@ path = "src/main_new.rs"
 [[bin]]
 name = "chart"
 path = "src/chart.rs"
+
+[[bin]]
+name = "server"
+path = "src/server.rs"
