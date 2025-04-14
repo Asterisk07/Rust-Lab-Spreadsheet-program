@@ -10,6 +10,12 @@ plotly = "0.12.1"  # or the latest version available
 showata = "0.1" # for interactive
 
 
+#sheet (tk later rename to main)
+[[bin]]
+name = "sheet"
+path = "src/sheet.rs"
+
+#vim interactive
 [[bin]]
 name = "main_simple"
 path = "src/main_simple.rs"
