@@ -3,12 +3,18 @@ use crossterm::{ExecutableCommand, terminal};
 use std::env;
 use std::io::{self, Write};
 
+mod basic;
+mod compare;
+mod convert;
 mod formulas;
 mod graph;
 mod info;
+mod list;
 mod parser;
+// mod random;
 mod sheet;
 mod status;
+mod vector;
 
 use info::CommandInfo;
 // use parser::CommandInfo;

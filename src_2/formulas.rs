@@ -1,7 +1,8 @@
 // formulas.rs
 
-use info::CellInfo;
-use sheet::{Sheet, GET_CELL, GET_ROW_AND_COLUMN};
+use crate::info::CellInfo;
+use crate::sheet;
+use crate::sheet::{get_cell, get_row_and_column};
 use std::cmp::{max as cmp_max, min as cmp_min};
 use std::f64::consts::E;
 use std::thread;
@@ -28,15 +29,15 @@ pub const IS_SINGLE_ARG_FUNCTION: fn(usize) -> bool = |i| (0..=1).contains(&i);
 
 // Range-based functions
 pub fn max(cell_info: &mut CellInfo) {
-    let (x1, y1) = GET_ROW_AND_COLUMN(cell_info.info.arg[0]);
-    let (x2, y2) = GET_ROW_AND_COLUMN(cell_info.info.arg[1]);
+    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
+    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
 
     cell_info.value = i32::MIN;
     cell_info.info.invalid = false;
 
     for i in x1..=x2 {
         for j in y1..=y2 {
-            let cell = GET_CELL(i, j);
+            let cell = get_cell(i, j);
             cell_info.info.invalid |= sheet::get(cell).info.invalid;
             if cell_info.info.invalid {
                 return;
@@ -47,15 +48,15 @@ pub fn max(cell_info: &mut CellInfo) {
 }
 
 pub fn min(cell_info: &mut CellInfo) {
-    let (x1, y1) = GET_ROW_AND_COLUMN(cell_info.info.arg[0]);
-    let (x2, y2) = GET_ROW_AND_COLUMN(cell_info.info.arg[1]);
+    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
+    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
 
     cell_info.value = i32::MAX;
     cell_info.info.invalid = false;
 
     for i in x1..=x2 {
         for j in y1..=y2 {
-            let cell = GET_CELL(i, j);
+            let cell = get_cell(i, j);
             cell_info.info.invalid |= sheet::get(cell).info.invalid;
             if cell_info.info.invalid {
                 return;
@@ -66,15 +67,15 @@ pub fn min(cell_info: &mut CellInfo) {
 }
 
 pub fn avg(cell_info: &mut CellInfo) {
-    let (x1, y1) = GET_ROW_AND_COLUMN(cell_info.info.arg[0]);
-    let (x2, y2) = GET_ROW_AND_COLUMN(cell_info.info.arg[1]);
+    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
+    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
 
     let mut avg_value: i64 = 0;
     cell_info.info.invalid = false;
 
     for i in x1..=x2 {
         for j in y1..=y2 {
-            let cell = GET_CELL(i, j);
+            let cell = get_cell(i, j);
             cell_info.info.invalid |= sheet::get(cell).info.invalid;
             if cell_info.info.invalid {
                 return;
@@ -88,15 +89,15 @@ pub fn avg(cell_info: &mut CellInfo) {
 }
 
 pub fn sum(cell_info: &mut CellInfo) {
-    let (x1, y1) = GET_ROW_AND_COLUMN(cell_info.info.arg[0]);
-    let (x2, y2) = GET_ROW_AND_COLUMN(cell_info.info.arg[1]);
+    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
+    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
 
     cell_info.value = 0;
     cell_info.info.invalid = false;
 
     for i in x1..=x2 {
         for j in y1..=y2 {
-            let cell = GET_CELL(i, j);
+            let cell = get_cell(i, j);
             cell_info.info.invalid |= sheet::get(cell).info.invalid;
             if cell_info.info.invalid {
                 return;
@@ -107,8 +108,8 @@ pub fn sum(cell_info: &mut CellInfo) {
 }
 
 pub fn stdev(cell_info: &mut CellInfo) {
-    let (x1, y1) = GET_ROW_AND_COLUMN(cell_info.info.arg[0]);
-    let (x2, y2) = GET_ROW_AND_COLUMN(cell_info.info.arg[1]);
+    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
+    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
 
     let mut sum_squares: i64 = 0;
     let mut sum: i64 = 0;
@@ -116,7 +117,7 @@ pub fn stdev(cell_info: &mut CellInfo) {
 
     for i in x1..=x2 {
         for j in y1..=y2 {
-            let cell = GET_CELL(i, j);
+            let cell = get_cell(i, j);
             cell_info.info.invalid |= sheet::get(cell).info.invalid;
             if cell_info.info.invalid {
                 return;
@@ -162,16 +163,16 @@ fn get_args(info: &Info) -> (i32, i32, bool) {
     } else {
         info.arg[0]
     };
-    
+
     let val2 = if info.arg_mask & 0b10 != 0 {
         sheet::get(info.arg[1]).value
     } else {
         info.arg[1]
     };
-    
-    let invalid = (info.arg_mask & 0b1 != 0 && sheet::get(info.arg[0]).info.invalid) ||
-        (info.arg_mask & 0b10 != 0 && sheet::get(info.arg[1]).info.invalid);
-    
+
+    let invalid = (info.arg_mask & 0b1 != 0 && sheet::get(info.arg[0]).info.invalid)
+        || (info.arg_mask & 0b10 != 0 && sheet::get(info.arg[1]).info.invalid);
+
     (val1, val2, invalid)
 }
 

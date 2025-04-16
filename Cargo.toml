@@ -8,12 +8,20 @@ crossterm = "0.28.1"
 plotters = "0.3.5" 
 plotly = "0.12.1"  # or the latest version available
 showata = "0.1" # for interactive
+lazy_static = "1.4" #for pattern matching
+regex = "1" #parsing
 
 
-#sheet (tk later rename to main)
+
+#autograder main file
 [[bin]]
 name = "sheet"
-path = "vim/sheet.rs"
+path = "src/main.rs"
+
+#sheet (tk later rename to main)
+#[[bin]]
+#name = "sheet"
+#path = "vim/sheet.rs"
 
 #vim interactive
 [[bin]]
