@@ -1,40 +1,43 @@
 // convert.rs
 
-/// Converts a 1-based column number to Excel-style column letters into provided buffer
-/// (e.g. 1 -> "A", 26 -> "Z", 27 -> "AA") 
-mod basic;
-mod sheet;
-use basic::*;
-use sheet :: *;
+/// Converts a 1-based column number to Excel-style column letters
+/// (e.g. 1 -> "A", 26 -> "Z", 27 -> "AA")
+use crate::basic::swap_char;
 
-pub fn num_to_alpha(buffer: &mut String, num: i32) -> Option<()> {
+pub fn num_to_alpha(num: u32) -> String {
     let mut n = num;
-    buffer.clear(); // Clear the `String` for safety
+    let mut result = Vec::new();
 
     while n > 0 {
         n -= 1;
-        let ch = (b'A' + (n % 26) as u8) as char; // Convert to a UTF-8 character
-        buffer.push(ch); // Append the character to the string
+        let c = (b'A' + (n % 26) as u8) as char;
+        result.push(c);
         n /= 26;
     }
 
-    let reversed: String = buffer.chars().rev().collect();
-    buffer.clear(); // Clear the buffer
-    buffer.push_str(&reversed); // Update buffer with reversed characters
-
-    Some(())
+    result.iter().rev().collect()
 }
 
+/// Converts Excel-style column letters to a 1-based number
 /// Returns None for invalid input
-pub fn alpha_to_num(letters: &str) -> Option<i32> {
-    let mut res = 0;
+pub fn alpha_to_num(letters: &str) -> Option<usize> {
+    if letters.is_empty() {
+        return None;
+    }
 
+    let mut res = 0;
     for c in letters.chars() {
         if !c.is_ascii_uppercase() {
-            return None; // Return None if the character is not an uppercase ASCII letter
+            return None;
         }
-        res = res.checked_mul(26)?; // Checked multiplication to prevent overflow
-        res = res.checked_add((c as u8 - b'A' + 1) as i32)?; // Convert char to ASCII index
+        // result = result.checked_mul(26)?;
+        // result = result.checked_add((c as usize) - ('A' as usize) + 1)?;
+
+        // res *= 26;
+        // res += (int) (buffer[i] - 'A' + 1);
+
+        res *= 26;
+        res += (c as usize) - ('A' as usize) + 1;
     }
 
     Some(res)

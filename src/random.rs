@@ -4,10 +4,19 @@ use std::env;
 use std::fs::File;
 use std::io::Write;
 
-mod basic ;
-use basic :: *;
-mod convert ;
-use convert :: *;
+mod convert {
+    pub fn num_to_alpha(num: u32) -> String {
+        let mut n = num;
+        let mut result = Vec::new();
+        while n > 0 {
+            n -= 1;
+            let c = (b'A' + (n % 26) as u8) as char;
+            result.push(c);
+            n /= 26;
+        }
+        result.iter().rev().collect()
+    }
+}
 
 fn get_tree(n: usize, m: usize) -> Vec<String> {
     let k = n * m;

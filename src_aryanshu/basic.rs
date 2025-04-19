@@ -14,7 +14,7 @@ macro_rules! max {
 }
 
 // Swap functions using standard library
-pub fn swap_char(a: &mut u8, b: &mut u8) {
+pub fn swap_char(a: &mut char, b: &mut char) {
     std::mem::swap(a, b);
 }
 

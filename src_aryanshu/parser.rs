@@ -1,16 +1,18 @@
 // parser.rs
-use lazy_static::lazy_static;
 use regex::Regex;
+use lazy_static::lazy_static;
 use std::str::FromStr;
 
-// mod convert;
-// mod sheet;
-// mod status;
-// mod info;
-
-use crate::info::{CommandInfo, Info, ValueInfo};
-use crate::sheet::{get_cell, get_row_and_column, is_valid_cell, is_valid_range};
-use crate::status::{StatusCode, set_status_code};
+mod convert ;
+use convert :: *;
+mod status ;
+use status :: *;
+mod formulas ;
+use formulas :: *;
+mod basic ;
+use basic :: *;
+mod sheet ;
+use sheet :: *;
 
 const INPUT_BUFFER_SIZE: usize = 64;
 const MAX_MATCHES: usize = 4;
@@ -57,7 +59,7 @@ impl ParserContext {
 pub fn parse_sheet_dimensions(n_str: &str, m_str: &str) -> Result<(usize, usize), ParseError> {
     let n = n_str.parse().map_err(|_| ParseError::InvalidValue)?;
     let m = m_str.parse().map_err(|_| ParseError::InvalidValue)?;
-
+    
     if n > sheet::N_MAX || m > sheet::M_MAX || n == 0 || m == 0 {
         Err(ParseError::InvalidValue)
     } else {
@@ -82,15 +84,11 @@ pub fn expression_parser(expr: &str, info: &mut Info) -> Result<(), ParseError> 
     Err(ParseError::InvalidCommand)
 }
 
-fn handle_assignment(
-    caps: &regex::Captures,
-    info: &mut Info,
-    match_type: usize,
-) -> Result<(), ParseError> {
+fn handle_assignment(caps: &regex::Captures, info: &mut Info, match_type: usize) -> Result<(), ParseError> {
     let value_str = caps.get(1).unwrap().as_str();
     let mut value_info = ValueInfo::default();
     value_parser(value_str, &mut value_info)?;
-
+    
     info.arg_mask = value_info.is_cell as u8;
     info.arg[0] = value_info.value as i32;
     info.function_id = match_type as u8;
@@ -100,9 +98,9 @@ fn handle_assignment(
 fn handle_arithmetic(caps: &regex::Captures, info: &mut Info) -> Result<(), ParseError> {
     let op = caps.get(2).unwrap().as_str();
     let op_index = "+-*/".find(op).ok_or(ParseError::InvalidCommand)?;
-
+    
     info.function_id = (ARITHMETIC_OFFSET + op_index) as u8;
-
+    
     for j in 0..=1 {
         let value_str = caps.get(j * 2 + 1).unwrap().as_str();
         let mut value_info = ValueInfo::default();
@@ -148,14 +146,12 @@ pub fn value_parser(value_str: &str, value_info: &mut ValueInfo) -> Result<(), P
 }
 
 pub fn cell_parser(cell_str: &str) -> Result<usize, ParseError> {
-    let split_pos = cell_str
-        .find(|c: char| c.is_ascii_digit())
-        .ok_or(ParseError::InvalidCell)?;
+    let split_pos = cell_str.find(|c: char| c.is_ascii_digit()).ok_or(ParseError::InvalidCell)?;
     let (col_str, row_str) = cell_str.split_at(split_pos);
-
+    
     let col = convert::alpha_to_num(col_str).ok_or(ParseError::InvalidCell)?;
     let row = usize::from_str(row_str).map_err(|_| ParseError::InvalidCell)? - 1;
-
+    
     if !is_valid_cell(row, col) {
         Err(ParseError::InvalidCell)
     } else {
@@ -165,30 +161,27 @@ pub fn cell_parser(cell_str: &str) -> Result<usize, ParseError> {
 
 pub fn parser(input: &str, context: &mut ParserContext) -> Result<CommandInfo, ParseError> {
     let mut cmd_info = CommandInfo::default();
-
+    
     if input.len() == 1 {
         cmd_info.lhs_cell = -1;
         control_parser(input, context)?;
         return Ok(cmd_info);
     }
-
+    
     if let Some(caps) = PATTERNS[4].captures(input) {
         let lhs_str = caps.get(1).unwrap().as_str();
         cmd_info.lhs_cell = cell_parser(lhs_str)? as i32;
-
+        
         let expr = caps.get(2).unwrap().as_str();
         expression_parser(expr, &mut cmd_info.info)?;
-
+        
         Ok(cmd_info)
     } else {
         handle_other_commands(input, context)
     }
 }
 
-fn handle_other_commands(
-    input: &str,
-    context: &mut ParserContext,
-) -> Result<CommandInfo, ParseError> {
+fn handle_other_commands(input: &str, context: &mut ParserContext) -> Result<CommandInfo, ParseError> {
     match input {
         "disable_output" => {
             context.output_enabled = false;
@@ -224,7 +217,7 @@ fn control_parser(input: &str, context: &mut ParserContext) -> Result<(), ParseE
                 "d" => (0, 1),
                 _ => unreachable!(),
             };
-
+            
             context.px = context.px.saturating_add_signed(delta.0);
             context.py = context.py.saturating_add_signed(delta.1);
             Ok(())

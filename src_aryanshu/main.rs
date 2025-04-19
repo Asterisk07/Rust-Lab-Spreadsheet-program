@@ -1,24 +1,20 @@
 // main.rs
-use crossterm::{ExecutableCommand, terminal};
 use std::env;
 use std::io::{self, Write};
+use crossterm::{terminal, ExecutableCommand};
 
-mod basic;
-mod compare;
-mod convert;
-mod formulas;
-mod graph;
-mod info;
-mod list;
-mod parser;
-// mod random;
-mod sheet;
-mod status;
-mod vector;
-
-use info::CommandInfo;
-// use parser::CommandInfo;
-use status::{StatusCode, print_status, set_status_code, start_time};
+mod sheet ;
+use sheet :: *;
+mod convert ;
+use convert :: *;
+mod parser ;
+use parser :: *;
+mod formulas ;
+use formulas :: *;
+mod graph ;
+use graph :: *;
+mod status ;
+use status :: *;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -63,8 +59,12 @@ fn main() -> io::Result<()> {
             continue;
         }
 
-        match graph::update_expression(cmd_info.lhs_cell as usize, &cmd_info.info, &mut sheet) {
-            Ok(_) => {}
+        match graph::update_expression(
+            cmd_info.lhs_cell as usize,
+            &cmd_info.info,
+            &mut sheet
+        ) {
+            Ok(_) => {},
             Err(_) => set_status_code(StatusCode::CyclicDep),
         }
     }

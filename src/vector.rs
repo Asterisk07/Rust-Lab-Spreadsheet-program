@@ -59,6 +59,6 @@ impl Vector {
 
 impl Drop for Vector {
     fn drop(&mut self) {
-       
+        // Vec automatically handles deallocation
     }
 }

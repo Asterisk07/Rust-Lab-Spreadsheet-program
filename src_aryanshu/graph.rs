@@ -2,12 +2,14 @@
 use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 
-// External dependencies
-use crate::info::{Info, VisitStatus};
-use crate::list::{erase_list, push_front, Node};
-use crate::sheet::{Sheet, GET_CELL, GET_COLUMN, GET_ROW_AND_COLUMN};
-use crate::status::{set_status_code, StatusCode};
-use crate::formulas::FPTR;
+mod convert ;
+use convert :: *;
+mod sheet ;
+use sheet :: *;
+mod formulas ;
+use formulas :: *;
+mod status ;
+use status :: *;
 
 // Constants from original C code
 const NOT_VISITED: VisitStatus = VisitStatus::NotVisited;
