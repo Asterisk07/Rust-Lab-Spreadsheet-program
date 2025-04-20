@@ -1,77 +1,45 @@
+// ===============================
 // main.rs
-use crossterm::{ExecutableCommand, terminal};
-use std::env;
-use std::io::{self, Write};
-
-mod basic;
-mod compare;
-mod convert;
+// ===============================
 mod formulas;
 mod graph;
 mod info;
-mod list;
-mod parser;
-// mod random;
 mod sheet;
-mod status;
-mod vector;
 
-use info::CommandInfo;
-// use parser::CommandInfo;
-use status::{StatusCode, print_status, set_status_code, start_time};
+use crate::formulas::{add, assignment};
+use crate::graph::Graph;
+use crate::sheet::Sheet;
 
-fn main() -> io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
-        eprintln!("Invalid arguments\nUsage: {} <rows> <columns>", args[0]);
-        return Ok(());
+fn main() {
+    let rows = 10;
+    let cols = 10;
+    let mut sheet = Sheet::new(rows, cols);
+
+    let eval_fns: Vec<formulas::EvalFn> = vec![assignment, add]; // etc.
+
+    // Dummy: set A1 = 5, B1 = A1 + 3
+    {
+        let a1 = sheet.get_index(0, 0);
+        sheet.cells[a1].info.arg_mask = 0;
+        sheet.cells[a1].info.arg[0] = 5;
+        sheet.cells[a1].info.function_id = 0;
+
+        let b1 = sheet.get_index(0, 1);
+        sheet.cells[b1].info.arg_mask = 3;
+        sheet.cells[b1].info.arg[0] = a1 as i32;
+        sheet.cells[b1].info.arg[1] = 3;
+        sheet.cells[b1].info.function_id = 1;
     }
 
-    let (n, m) = match sheet::parse_dimensions(&args[1], &args[2]) {
-        Ok((n, m)) => (n, m),
-        Err(_) => {
-            eprintln!("Invalid rows and columns");
-            return Ok(());
-        }
-    };
+    // Build graph
+    let mut graph = Graph::new(rows * cols);
+    graph.build_dependency(&sheet, sheet.get_index(0, 1), &[sheet.get_index(0, 0)]);
 
-    let mut sheet = sheet::Sheet::new(n, m);
-    let mut parser_ctx = parser::ParserContext::new();
-    let mut stdout = io::stdout();
-
-    status::start_time();
-
-    loop {
-        if parser_ctx.output_enabled {
-            sheet.display()?;
-        }
-
-        print_status();
-        stdout.flush()?;
-
-        set_status_code(StatusCode::Ok);
-
-        let input = read_command()?;
-        status::start_time();
-
-        let cmd_info = match parser::parse(&input, &mut parser_ctx) {
-            Ok(info) => info,
-            Err(_) => continue,
-        };
-
-        if cmd_info.lhs_cell == -1 {
-            continue;
-        }
-
-        match graph::update_expression(cmd_info.lhs_cell as usize, &cmd_info.info, &mut sheet) {
-            Ok(_) => {}
-            Err(_) => set_status_code(StatusCode::CyclicDep),
-        }
+    // Evaluate
+    if graph.dfs(&mut sheet, sheet.get_index(0, 1)) {
+        graph.evaluate_order(&mut sheet, &eval_fns);
+        println!("B1 = {}", sheet.get_cell(0, 1).value);
+    } else {
+        println!("Cycle detected");
     }
-}
-
-fn read_command() -> io::Result<String> {
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-    Ok(input.trim().to_string())
 }

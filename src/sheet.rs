@@ -1,34 +1,32 @@
+// ===============================
 // sheet.rs
+// ===============================
+use crate::formulas::evaluate;
+use crate::info::{Cell, Info};
 
-pub const N_MAX: usize = 999;
-pub const M_MAX: usize = 18278;
-
-#[inline]
-pub fn is_valid_cell(row: usize, col: usize, cols: usize) -> bool {
-    row < N_MAX && col < cols && col < M_MAX
+#[derive(Debug)]
+pub struct Sheet {
+    pub rows: usize,
+    pub cols: usize,
+    pub cells: Vec<Cell>,
 }
 
-#[inline]
-pub fn is_valid_range(cell1: usize, cell2: usize, cols: usize) -> bool {
-    cell1 <= cell2 && (cell1 % cols) <= (cell2 % cols)
-}
+impl Sheet {
+    pub fn new(rows: usize, cols: usize) -> Self {
+        let cells = vec![Cell::default(); rows * cols];
+        Sheet { rows, cols, cells }
+    }
 
-#[inline]
-pub fn get_row(cell: usize, cols: usize) -> usize {
-    cell / cols
-}
+    pub fn get_index(&self, row: usize, col: usize) -> usize {
+        row * self.cols + col
+    }
 
-#[inline]
-pub fn get_column(cell: usize, cols: usize) -> usize {
-    cell % cols
-}
+    pub fn get_cell(&self, row: usize, col: usize) -> &Cell {
+        &self.cells[self.get_index(row, col)]
+    }
 
-#[inline]
-pub fn get_cell(row: usize, col: usize, cols: usize) -> usize {
-    row * cols + col
-}
-
-#[inline]
-pub fn get_row_and_column(cell: usize, cols: usize) -> (usize, usize) {
-    (cell / cols, cell % cols)
+    pub fn get_cell_mut(&mut self, row: usize, col: usize) -> &mut Cell {
+        let idx = self.get_index(row, col);
+        &mut self.cells[idx]
+    }
 }

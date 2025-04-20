@@ -1,203 +1,50 @@
+// ===============================
 // formulas.rs
+// ===============================
+use crate::info::{Cell, Info};
+use crate::sheet::Sheet;
 
-use crate::info::CellInfo;
-use crate::sheet;
-use crate::sheet::{get_cell, get_row_and_column};
-use std::cmp::{max as cmp_max, min as cmp_min};
-use std::f64::consts::E;
-use std::thread;
-use std::time::Duration;
+pub type EvalFn = fn(&mut Cell, &Sheet);
 
-pub static FPTR: [fn(&mut CellInfo); 11] = [
-    assignment,
-    sleep_assignment,
-    add,
-    sub,
-    mul,
-    divide,
-    min,
-    max,
-    avg,
-    sum,
-    stdev,
-];
-
-// Helper macros translated to Rust constants
-pub const IS_RANGE_FUNCTION: fn(usize) -> bool = |i| (6..=10).contains(&i);
-pub const IS_ARITHMETIC_FUNCTION: fn(usize) -> bool = |i| (2..=5).contains(&i);
-pub const IS_SINGLE_ARG_FUNCTION: fn(usize) -> bool = |i| (0..=1).contains(&i);
-
-// Range-based functions
-pub fn max(cell_info: &mut CellInfo) {
-    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
-    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
-
-    cell_info.value = i32::MIN;
-    cell_info.info.invalid = false;
-
-    for i in x1..=x2 {
-        for j in y1..=y2 {
-            let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
-            if cell_info.info.invalid {
-                return;
-            }
-            cell_info.value = cmp_max(cell_info.value, sheet::get(cell).value);
-        }
-    }
-}
-
-pub fn min(cell_info: &mut CellInfo) {
-    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
-    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
-
-    cell_info.value = i32::MAX;
-    cell_info.info.invalid = false;
-
-    for i in x1..=x2 {
-        for j in y1..=y2 {
-            let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
-            if cell_info.info.invalid {
-                return;
-            }
-            cell_info.value = cmp_min(cell_info.value, sheet::get(cell).value);
-        }
-    }
-}
-
-pub fn avg(cell_info: &mut CellInfo) {
-    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
-    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
-
-    let mut avg_value: i64 = 0;
-    cell_info.info.invalid = false;
-
-    for i in x1..=x2 {
-        for j in y1..=y2 {
-            let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
-            if cell_info.info.invalid {
-                return;
-            }
-            avg_value += sheet::get(cell).value as i64;
-        }
-    }
-
-    let count = ((x2 - x1 + 1) * (y2 - y1 + 1)) as i64;
-    cell_info.value = (avg_value / count) as i32;
-}
-
-pub fn sum(cell_info: &mut CellInfo) {
-    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
-    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
-
-    cell_info.value = 0;
-    cell_info.info.invalid = false;
-
-    for i in x1..=x2 {
-        for j in y1..=y2 {
-            let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
-            if cell_info.info.invalid {
-                return;
-            }
-            cell_info.value += sheet::get(cell).value;
-        }
-    }
-}
-
-pub fn stdev(cell_info: &mut CellInfo) {
-    let (x1, y1) = get_row_and_column(cell_info.info.arg[0]);
-    let (x2, y2) = get_row_and_column(cell_info.info.arg[1]);
-
-    let mut sum_squares: i64 = 0;
-    let mut sum: i64 = 0;
-    cell_info.info.invalid = false;
-
-    for i in x1..=x2 {
-        for j in y1..=y2 {
-            let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
-            if cell_info.info.invalid {
-                return;
-            }
-            let val = sheet::get(cell).value as i64;
-            sum_squares += val * val;
-            sum += val;
-        }
-    }
-
-    let count = ((x2 - x1 + 1) * (y2 - y1 + 1)) as i64;
-    let mean = sum / count;
-    let variance = (sum_squares - 2 * mean * sum + mean * mean * count) as f64 / count as f64;
-    cell_info.value = variance.sqrt().round() as i32;
-}
-
-// Assignment operations
-pub fn assignment(cell_info: &mut CellInfo) {
-    let is_cell_arg = cell_info.info.arg_mask & 0b1 != 0;
-    cell_info.value = if is_cell_arg {
-        sheet::get(cell_info.info.arg[0]).value
+pub fn assignment(cell: &mut Cell, sheet: &Sheet) {
+    let info = &cell.info;
+    if info.arg_mask & 1 != 0 {
+        cell.value = sheet.cells[info.arg[0] as usize].value;
+        cell.info.invalid = sheet.cells[info.arg[0] as usize].info.invalid;
     } else {
-        cell_info.info.arg[0]
-    };
-    cell_info.info.invalid = if is_cell_arg {
-        sheet::get(cell_info.info.arg[0]).info.invalid
-    } else {
-        false
-    };
-}
-
-pub fn sleep_assignment(cell_info: &mut CellInfo) {
-    assignment(cell_info);
-    if !cell_info.info.invalid && cell_info.value > 0 {
-        thread::sleep(Duration::from_secs(cell_info.value as u64));
+        cell.value = info.arg[0];
+        cell.info.invalid = false;
     }
 }
 
-// Arithmetic operations
-fn get_args(info: &Info) -> (i32, i32, bool) {
-    let val1 = if info.arg_mask & 0b1 != 0 {
-        sheet::get(info.arg[0]).value
+pub fn add(cell: &mut Cell, sheet: &Sheet) {
+    let info = &cell.info;
+    let (v1, v2) = resolve_args(info, sheet);
+    cell.value = v1 + v2;
+    cell.info.invalid = info_invalid(info, sheet);
+}
+
+// More functions like sub, mul, div, sum, avg, etc.
+
+fn resolve_args(info: &Info, sheet: &Sheet) -> (i32, i32) {
+    let v1 = if info.arg_mask & 1 != 0 {
+        sheet.cells[info.arg[0] as usize].value
     } else {
         info.arg[0]
     };
-
-    let val2 = if info.arg_mask & 0b10 != 0 {
-        sheet::get(info.arg[1]).value
+    let v2 = if info.arg_mask & 2 != 0 {
+        sheet.cells[info.arg[1] as usize].value
     } else {
         info.arg[1]
     };
-
-    let invalid = (info.arg_mask & 0b1 != 0 && sheet::get(info.arg[0]).info.invalid)
-        || (info.arg_mask & 0b10 != 0 && sheet::get(info.arg[1]).info.invalid);
-
-    (val1, val2, invalid)
+    (v1, v2)
 }
 
-pub fn add(cell_info: &mut CellInfo) {
-    let (v1, v2, invalid) = get_args(&cell_info.info);
-    cell_info.value = v1 + v2;
-    cell_info.info.invalid = invalid;
+fn info_invalid(info: &Info, sheet: &Sheet) -> bool {
+    (info.arg_mask & 1 != 0 && sheet.cells[info.arg[0] as usize].info.invalid)
+        || (info.arg_mask & 2 != 0 && sheet.cells[info.arg[1] as usize].info.invalid)
 }
 
-pub fn sub(cell_info: &mut CellInfo) {
-    let (v1, v2, invalid) = get_args(&cell_info.info);
-    cell_info.value = v1 - v2;
-    cell_info.info.invalid = invalid;
-}
-
-pub fn mul(cell_info: &mut CellInfo) {
-    let (v1, v2, invalid) = get_args(&cell_info.info);
-    cell_info.value = v1 * v2;
-    cell_info.info.invalid = invalid;
-}
-
-pub fn divide(cell_info: &mut CellInfo) {
-    let (v1, v2, invalid) = get_args(&cell_info.info);
-    cell_info.info.invalid = invalid || v2 == 0;
-    if !cell_info.info.invalid {
-        cell_info.value = v1 / v2;
-    }
+pub fn evaluate(cell: &mut Cell, sheet: &Sheet, fns: &[EvalFn]) {
+    fns[cell.info.function_id](cell, sheet);
 }
