@@ -15,6 +15,10 @@ regex = "1" #parsing
 
 #autograder main file
 [[bin]]
+name = "small"
+path = "src_small/main.rs"
+
+[[bin]]
 name = "sheet"
 path = "src/main.rs"
 

@@ -3,11 +3,11 @@ use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 
 // External dependencies
-use crate::info::{Info, VisitStatus};
-use crate::list::{erase_list, push_front, Node};
-use crate::sheet::{Sheet, GET_CELL, GET_COLUMN, GET_ROW_AND_COLUMN};
-use crate::status::{set_status_code, StatusCode};
 use crate::formulas::FPTR;
+use crate::info::{Info, VisitStatus};
+use crate::list::{Node, erase_list, push_front};
+use crate::sheet::{GET_CELL, GET_COLUMN, GET_ROW_AND_COLUMN, Sheet};
+use crate::status::{StatusCode, set_status_code};
 
 // Constants from original C code
 const NOT_VISITED: VisitStatus = VisitStatus::NotVisited;
@@ -35,7 +35,13 @@ impl GraphContext {
             stack: vec![0; size],
             order_ptr: size,
             stack_ptr: 0,
-            adj: vec![AdjList { head: None, ptr: None }; size],
+            adj: vec![
+                AdjList {
+                    head: None,
+                    ptr: None
+                };
+                size
+            ],
             sheet,
             size,
         }
@@ -54,18 +60,31 @@ impl GraphContext {
             cell_x >= x1 && cell_x <= x2 && cell_y >= y1 && cell_y <= y2
         } else {
             // Single argument check
-            let arg1_cell = if info.arg_mask & 0b1 != 0 { info.arg[0] } else { usize::MAX };
-            let arg2_cell = if info.arg_mask & 0b10 != 0 { info.arg[1] } else { usize::MAX };
+            let arg1_cell = if info.arg_mask & 0b1 != 0 {
+                info.arg[0]
+            } else {
+                usize::MAX
+            };
+            let arg2_cell = if info.arg_mask & 0b10 != 0 {
+                info.arg[1]
+            } else {
+                usize::MAX
+            };
             cell == arg1_cell || cell == arg2_cell
         }
     }
 
-    fn modify_graph(&mut self, cell: usize, info: &Info, func: fn(&mut Option<Rc<RefCell<Node>>, usize)) {
+    fn modify_graph(
+        &mut self,
+        cell: usize,
+        info: &Info,
+        func: fn(&mut Option<Rc<RefCell<Node>>>, usize),
+    ) {
         if info.function_id >= 6 && info.function_id <= 10 {
             // Range-based dependency
             let (x1, y1) = GET_ROW_AND_COLUMN(info.arg[0]);
             let (x2, y2) = GET_ROW_AND_COLUMN(info.arg[1]);
-            
+
             for i in x1..=x2 {
                 for j in y1..=y2 {
                     let x = GET_CELL(i, j);
@@ -105,7 +124,7 @@ impl GraphContext {
 
         while self.stack_ptr > 0 {
             let u = self.stack[self.stack_ptr - 1];
-            
+
             if self.in_dependency(u, new_info) {
                 return false;
             }
@@ -114,14 +133,14 @@ impl GraphContext {
             if let Some(node) = adj_ptr {
                 let v = node.borrow().data;
                 *adj_ptr = node.borrow().next.clone();
-                
+
                 match sheet.cells[v].visit_status {
                     IN_STACK => return false,
                     NOT_VISITED => {
                         sheet.cells[v].visit_status = IN_STACK;
                         self.stack[self.stack_ptr] = v;
                         self.stack_ptr += 1;
-                    },
+                    }
                     _ => {}
                 }
             } else {
