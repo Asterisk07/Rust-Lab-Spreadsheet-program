@@ -4,7 +4,6 @@
 mod formulas;
 mod graph;
 mod info;
-mod parser;
 mod sheet;
 
 use crate::formulas::*;
@@ -13,8 +12,13 @@ use crate::info::{Cell, Info};
 use crate::sheet::Sheet;
 use std::io::{self, BufRead};
 
-use crate::parser::Operation;
-use crate::parser::parse_excel_style;
+enum Operation {
+    SetValue(usize, usize, i32),                   // row, col, value
+    SetFormula(usize, usize, usize, usize, usize), // row, col, function_id, arg1_idx, arg2_idx
+    PrintCell(usize, usize),                       // row, col
+    PrintSheet,
+    Exit,
+}
 
 fn parse_operation(input: &str) -> Result<Operation, &'static str> {
     let parts: Vec<&str> = input.trim().split_whitespace().collect();
@@ -118,8 +122,7 @@ fn main() {
     let mut lines = stdin.lock().lines();
 
     while let Some(Ok(line)) = lines.next() {
-        // match parse_operation(&line) {
-        match parse_excel_style(&line) {
+        match parse_operation(&line) {
             Ok(Operation::SetValue(row, col, value)) => {
                 if row >= rows || col >= cols {
                     println!("Cell ({}, {}) is out of bounds", row, col);
