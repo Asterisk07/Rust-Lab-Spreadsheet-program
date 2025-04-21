@@ -1,9 +1,0 @@
-   Compiling rust_spreadsheet v0.1.0 (/home/asterisk/code/rust/projects/rust_spreadsheet)
-error[E0425]: cannot find value `MEM_POOL` in module `crate::list`
-  --> src/list.rs:92:47
-   |
-92 |     let mut pool = unsafe { &mut crate::list::MEM_POOL };
-   |                                               ^^^^^^^^ not found in `crate::list`
-
-For more information about this error, try `rustc --explain E0425`.
-error: could not compile `rust_spreadsheet` (bin "sheet") due to 1 previous error

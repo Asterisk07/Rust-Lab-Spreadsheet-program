@@ -1,1 +1,0 @@
-   Compiling rust_spreadsheet v0.1.0 (/home/asterisk/code/rust/projects/rust_spreadsheet)
