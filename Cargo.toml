@@ -14,9 +14,9 @@ regex = "1" #parsing
 
 
 #autograder main file
-[[bin]]
-name = "small"
-path = "src_small/main.rs"
+# [[bin]]
+# name = "small"
+# path = "src_small/main.rs"
 
 [[bin]]
 name = "sheet"
@@ -24,26 +24,26 @@ path = "src/main.rs"
 
 #sheet (tk later rename to main)
 #[[bin]]
-#name = "sheet"
+#name = "sheet2"
 #path = "vim/sheet.rs"
 
 #vim interactive
-[[bin]]
-name = "main_simple"
-path = "vim/main_simple.rs"
+# [[bin]]
+# name = "main_simple"
+# path = "vim/main_simple.rs"
 
-[[bin]]
-name = "main_simple_help"
-path = "vim/main_simple_help.rs"
+# [[bin]]
+# name = "main_simple_help"
+# path = "vim/main_simple_help.rs"
 
-[[bin]]
-name = "main_new"
-path = "vim/main_new.rs"
+# [[bin]]
+# name = "main_new"
+# path = "vim/main_new.rs"
 
-[[bin]]
-name = "chart"
-path = "vim/chart.rs"
+# [[bin]]
+# name = "chart"
+# path = "vim/chart.rs"
 
-[[bin]]
-name = "server"
-path = "vim/server.rs"
+# [[bin]]
+# name = "server"
+# path = "vim/server.rs"

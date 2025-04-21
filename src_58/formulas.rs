@@ -1,6 +1,6 @@
 // formulas.rs
 
-use crate::info::CellInfo;
+use crate::info::{CellInfo, Info};
 use crate::sheet;
 use crate::sheet::{get_cell, get_row_and_column};
 use std::cmp::{max as cmp_max, min as cmp_min};
@@ -22,10 +22,18 @@ pub static FPTR: [fn(&mut CellInfo); 11] = [
     stdev,
 ];
 
-// Helper macros translated to Rust constants
-pub const IS_RANGE_FUNCTION: fn(usize) -> bool = |i| (6..=10).contains(&i);
-pub const IS_ARITHMETIC_FUNCTION: fn(usize) -> bool = |i| (2..=5).contains(&i);
-pub const IS_SINGLE_ARG_FUNCTION: fn(usize) -> bool = |i| (0..=1).contains(&i);
+// Helper functions to check function types
+pub fn is_range_function(i: u8) -> bool {
+    (6..=10).contains(&i)
+}
+
+pub fn is_arithmetic_function(i: u8) -> bool {
+    (2..=5).contains(&i)
+}
+
+pub fn is_single_arg_function(i: u8) -> bool {
+    (0..=1).contains(&i)
+}
 
 // Range-based functions
 pub fn max(cell_info: &mut CellInfo) {
@@ -38,7 +46,7 @@ pub fn max(cell_info: &mut CellInfo) {
     for i in x1..=x2 {
         for j in y1..=y2 {
             let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
+            cell_info.info.invalid |= sheet::get(cell).info.invalid != 0;
             if cell_info.info.invalid {
                 return;
             }
@@ -57,7 +65,7 @@ pub fn min(cell_info: &mut CellInfo) {
     for i in x1..=x2 {
         for j in y1..=y2 {
             let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
+            cell_info.info.invalid |= sheet::get(cell).info.invalid != 0;
             if cell_info.info.invalid {
                 return;
             }
@@ -76,7 +84,7 @@ pub fn avg(cell_info: &mut CellInfo) {
     for i in x1..=x2 {
         for j in y1..=y2 {
             let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
+            cell_info.info.invalid |= sheet::get(cell).info.invalid != 0;
             if cell_info.info.invalid {
                 return;
             }
@@ -98,7 +106,7 @@ pub fn sum(cell_info: &mut CellInfo) {
     for i in x1..=x2 {
         for j in y1..=y2 {
             let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
+            cell_info.info.invalid |= sheet::get(cell).info.invalid != 0;
             if cell_info.info.invalid {
                 return;
             }
@@ -118,7 +126,7 @@ pub fn stdev(cell_info: &mut CellInfo) {
     for i in x1..=x2 {
         for j in y1..=y2 {
             let cell = get_cell(i, j);
-            cell_info.info.invalid |= sheet::get(cell).info.invalid;
+            cell_info.info.invalid |= sheet::get(cell).info.invalid != 0;
             if cell_info.info.invalid {
                 return;
             }
@@ -170,8 +178,8 @@ fn get_args(info: &Info) -> (i32, i32, bool) {
         info.arg[1]
     };
 
-    let invalid = (info.arg_mask & 0b1 != 0 && sheet::get(info.arg[0]).info.invalid)
-        || (info.arg_mask & 0b10 != 0 && sheet::get(info.arg[1]).info.invalid);
+    let invalid = (info.arg_mask & 0b1 != 0 && sheet::get(info.arg[0]).info.invalid != 0)
+        || (info.arg_mask & 0b10 != 0 && sheet::get(info.arg[1]).info.invalid != 0);
 
     (val1, val2, invalid)
 }
@@ -199,5 +207,13 @@ pub fn divide(cell_info: &mut CellInfo) {
     cell_info.info.invalid = invalid || v2 == 0;
     if !cell_info.info.invalid {
         cell_info.value = v1 / v2;
+    }
+}
+
+// Apply a function to a cell based on its function ID
+pub fn apply_function(cell_info: &mut CellInfo) {
+    let func_idx = cell_info.info.function_id as usize;
+    if func_idx < FPTR.len() {
+        FPTR[func_idx](cell_info);
     }
 }

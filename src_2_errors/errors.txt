@@ -1,0 +1,141 @@
+   Compiling rust_spreadsheet v0.1.0 (/home/asterisk/code/rust/projects/rust_spreadsheet)
+warning: unused imports: `ExecutableCommand` and `terminal`
+ --> src/main.rs:2:17
+  |
+2 | use crossterm::{terminal, ExecutableCommand};
+  |                 ^^^^^^^^  ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `crate::basic::swap_char`
+ --> src/convert.rs:5:5
+  |
+5 | use crate::basic::swap_char;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::f64::consts::E`
+ --> src/formulas.rs:6:5
+  |
+6 | use std::f64::consts::E;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `StatusCode` and `set_status_code`
+ --> src/parser.rs:9:21
+  |
+9 | use crate::status::{set_status_code, StatusCode};
+  |                     ^^^^^^^^^^^^^^^  ^^^^^^^^^^
+
+warning: unused import: `std::cell::RefCell`
+ --> src/sheet.rs:2:5
+  |
+2 | use std::cell::RefCell;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::rc::Rc`
+ --> src/sheet.rs:5:5
+  |
+5 | use std::rc::Rc;
+  |     ^^^^^^^^^^^
+
+warning: unused import: `info::CommandInfo`
+  --> src/main.rs:19:5
+   |
+19 | use info::CommandInfo;
+   |     ^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `clone` found for mutable reference `&mut Sheet` in the current scope
+   --> src/graph.rs:316:47
+    |
+316 |     let sheet_rc = Rc::new(RefCell::new(sheet.clone()));
+    |                                               ^^^^^ method not found in `&mut Sheet`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the trait `Clone` defines an item `clone`, but is explicitly unimplemented
+
+error[E0599]: no method named `clone` found for struct `Ref<'_, Sheet>` in the current scope
+   --> src/graph.rs:325:36
+    |
+325 |             *sheet = updated_sheet.clone();
+    |                      --------------^^^^^--
+    |                      |             |
+    |                      |             this is an associated function, not a method
+    |                      help: use associated function syntax instead: `Ref::<'_, Sheet>::clone(&updated_sheet)`
+    |
+    = note: found the following associated functions; to be used as methods, functions must have a `self` parameter
+    = note: the candidate is defined in an impl for the type `Ref<'b, T>`
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following trait defines an item `clone`, perhaps you need to implement it:
+            candidate #1: `Clone`
+
+warning: value assigned to `print_header` is never read
+  --> src/compare.rs:48:17
+   |
+48 |                 print_header = false;
+   |                 ^^^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+   = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `print_header` is never read
+  --> src/compare.rs:67:17
+   |
+67 |                 print_header = false;
+   |                 ^^^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+
+warning: unused variable: `mem_pool`
+   --> src/graph.rs:134:59
+    |
+134 |         self.modify_graph(cell, &cell_info, |head, value, mem_pool| {
+    |                                                           ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mem_pool`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: variable does not need to be mutable
+   --> src/graph.rs:130:13
+    |
+130 |         let mut sheet_borrow = self.sheet.borrow_mut();
+    |             ----^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `mem_pool`
+   --> src/graph.rs:141:57
+    |
+141 |         self.modify_graph(cell, new_info, |head, value, mem_pool| {
+    |                                                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mem_pool`
+
+warning: variable does not need to be mutable
+   --> src/graph.rs:252:17
+    |
+252 |             let mut sheet_borrow = self.sheet.borrow_mut();
+    |                 ----^^^^^^^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/list.rs:92:9
+   |
+92 |     let mut pool = unsafe { &mut crate::list::MEM_POOL };
+   |         ----^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: unused variable: `caps`
+   --> src/parser.rs:140:18
+    |
+140 | fn handle_scroll(caps: &regex::Captures, info: &mut Info) -> Result<(), ParseError> {
+    |                  ^^^^ help: if this is intentional, prefix it with an underscore: `_caps`
+
+warning: unused variable: `info`
+   --> src/parser.rs:140:42
+    |
+140 | fn handle_scroll(caps: &regex::Captures, info: &mut Info) -> Result<(), ParseError> {
+    |                                          ^^^^ help: if this is intentional, prefix it with an underscore: `_info`
+
+For more information about this error, try `rustc --explain E0599`.
+warning: `rust_spreadsheet` (bin "sheet") generated 16 warnings
+error: could not compile `rust_spreadsheet` (bin "sheet") due to 2 previous errors; 16 warnings emitted

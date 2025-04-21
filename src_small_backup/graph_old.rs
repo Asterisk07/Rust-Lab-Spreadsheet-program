@@ -1,6 +1,3 @@
-// ===============================
-// graph.rs
-// ===============================
 use crate::info::Cell;
 use crate::sheet::Sheet;
 use std::cell::RefCell;
