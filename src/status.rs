@@ -2,6 +2,7 @@
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
+use std::io::{self, Write};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StatusCode {
@@ -55,5 +56,6 @@ pub fn print_status() {
     let status = *STATUS_CODE.lock().unwrap();
     let msg = STATUS_MSG[status as usize];
 
-    println!("[{:.1}] ({}) >", elapsed, msg);
+    print!("[{:.1}] ({}) >", elapsed, msg);
+    io::stdout().flush().unwrap();
 }

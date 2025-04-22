@@ -53,7 +53,7 @@ fn main() -> io::Result<()> {
     mem_pool.borrow_mut().add_block();
 
     // Initialize sheet
-    let sheet = Rc::new(RefCell::new(sheet::Sheet::new(n, m)));
+    let mut sheet = Rc::new(RefCell::new(sheet::Sheet::new(n, m)));
 
     // Initialize graph
     let mut graph = graph::Graph::new(n, m, sheet.clone(), mem_pool.clone());
@@ -74,7 +74,7 @@ fn main() -> io::Result<()> {
     loop {
         if parser_ctx.output_enabled {
             // sheet.display()?;
-            sheet.borrow().display()?; // Borrow for display
+            sheet.borrow_mut().display(&mut parser_ctx)?; // Borrow for display
         }
 
         print_status();
@@ -123,3 +123,4 @@ fn read_command() -> io::Result<String> {
     io::stdin().read_line(&mut input)?;
     Ok(input.trim().to_string())
 }
+
