@@ -425,16 +425,16 @@ impl VimEditor {
                 // Handle cursor cell with consistent width
                 if i == self.cursor_y && j == self.cursor_x {
                     let cursor_content = if is_error {
-                        format!("[{:^6}]", "ERR")
+                        format!("[{:^8}]", "ERR") // 8 characters between brackets
                     } else {
-                        format!("[{:^6}]", content)
+                        format!("[{:^8}]", content) // 8 characters between brackets
                     };
                     execute!(
                         stdout,
                         PrintStyledContent(cursor_content.red().bold())
                     )?;
                 } else {
-                    // For normal cell with consistent width - apply padding first, then style
+                    // For normal cell - apply padding first, then style
                     let padded_content = format!("{:^10}", content);
                     
                     // Apply formatting to the padded content
