@@ -63,13 +63,19 @@ pub fn parse_sheet_dimensions(n_str: &str, m_str: &str) -> Result<(usize, usize)
 
 pub fn expression_parser(expr: &str, info: &mut Info) -> Result<(), ParseError> {
     for (match_type, re) in PATTERNS.iter().enumerate() {
+          // Skip the SCROLL_TO pattern (index 5) as it's handled by handle_other_commands
+
+          if match_type == 5 {
+
+            continue;
+
+        }
         if let Some(caps) = re.captures(expr) {
             return match match_type {
                 0 | 1 => handle_assignment(&caps, info, match_type),
                 2 => handle_arithmetic(&caps, info),
                 3 => handle_range(&caps, info),
                 4 => handle_expression(&caps, info),
-                5 => handle_scroll(&caps, info),
                 6 => handle_integer(&caps, info),
                 _ => Err(ParseError::InvalidCommand),
             };
@@ -137,11 +143,6 @@ fn handle_expression(caps: &regex::Captures, info: &mut Info) -> Result<(), Pars
     expression_parser(expr, info)
 }
 
-fn handle_scroll(caps: &regex::Captures, info: &mut Info) -> Result<(), ParseError> {
-    // No need to modify info for scroll command
-    Ok(())
-}
-
 fn handle_integer(caps: &regex::Captures, info: &mut Info) -> Result<(), ParseError> {
     let value =
         i32::from_str(caps.get(0).unwrap().as_str()).map_err(|_| ParseError::InvalidValue)?;
@@ -169,7 +170,7 @@ pub fn cell_parser(cell_str: &str) -> Result<usize, ParseError> {
     let (col_str, row_str) = cell_str.split_at(split_pos);
 
     let col = convert::alpha_to_num(col_str).ok_or(ParseError::InvalidCell)?;
-    let row = usize::from_str(row_str).map_err(|_| ParseError::InvalidCell)? - 1;
+    let row = usize::from_str(row_str).map_err(|_| ParseError::InvalidCell)? - 1; 
 
     if !is_valid_cell(row, col - 1) {
         Err(ParseError::InvalidCell)
@@ -189,6 +190,15 @@ pub fn parse(input: &str, context: &mut ParserContext) -> Result<CommandInfo, Pa
         control_parser(input, context)?;
         return Ok(cmd_info);
     }
+   // Check for special commands first
+
+   let result = handle_other_commands(input, context);
+
+   if result.is_ok() {
+
+       return result;
+
+   }
 
     if let Some(caps) = PATTERNS[4].captures(input) {
         let lhs_str = caps.get(1).unwrap().as_str();
@@ -201,7 +211,7 @@ pub fn parse(input: &str, context: &mut ParserContext) -> Result<CommandInfo, Pa
 
         Ok(cmd_info)
     } else {
-        handle_other_commands(input, context)
+        Err(ParseError::InvalidCommand)
     }
 }
 
@@ -210,6 +220,16 @@ fn handle_other_commands(
     context: &mut ParserContext,
 ) -> Result<CommandInfo, ParseError> {
     match input {
+        "undo" => {
+            let mut cmd_info = CommandInfo::default();
+            cmd_info.lhs_cell = -2; // Special value for undo
+            Ok(cmd_info)
+        }
+        "redo" => {
+            let mut cmd_info = CommandInfo::default();
+            cmd_info.lhs_cell = -3; // Special value for redo
+            Ok(cmd_info)
+        }
         "disable_output" => {
             context.output_enabled = false;
             let mut cmd_info = CommandInfo::default();
@@ -243,29 +263,40 @@ fn control_parser(input: &str, context: &mut ParserContext) -> Result<(), ParseE
     match input {
         "q" => std::process::exit(0),
         "w" | "a" | "s" | "d" => {
-            let delta = match input {
-                "w" => (-1, 0),
-                "a" => (0, -1),
-                "s" => (1, 0),
-                "d" => (0, 1),
+            // Get sheet dimensions
+            let n = crate::sheet::N_MAX();
+            let m = crate::sheet::M_MAX();
+            let viewport_size = 10; // Assuming 10x10 viewport
+
+            // Calculate max valid scroll positions
+            let max_px = n.saturating_sub(viewport_size);
+            let max_py = m.saturating_sub(viewport_size);
+
+            // Calculate delta with boundary checks
+            let (new_px, new_py) = match input {
+                "w" => ( // Up
+                    context.px.saturating_sub(10),
+                    context.py
+                ),
+                "s" => ( // Down
+                    context.px.saturating_add(10).min(max_px),
+                    context.py
+                ),
+                "a" => ( // Left
+                    context.px,
+                    context.py.saturating_sub(10)
+                ),
+                "d" => ( // Right
+                    context.px,
+                    context.py.saturating_add(10).min(max_py)
+                ),
                 _ => unreachable!(),
             };
 
-            // Using saturating_add_signed to prevent underflow
-            if delta.0 < 0 && context.px == 0 {
-                context.px = 0;
-            } else if delta.0 > 0 {
-                context.px = context.px.saturating_add(1);
-            } else if delta.0 < 0 {
-                context.px = context.px.saturating_sub(1);
-            }
-
-            if delta.1 < 0 && context.py == 0 {
-                context.py = 0;
-            } else if delta.1 > 0 {
-                context.py = context.py.saturating_add(1);
-            } else if delta.1 < 0 {
-                context.py = context.py.saturating_sub(1);
+            // Only update if position changed
+            if new_px != context.px || new_py != context.py {
+                context.px = new_px;
+                context.py = new_py;
             }
 
             Ok(())

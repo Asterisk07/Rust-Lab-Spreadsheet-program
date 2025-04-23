@@ -364,14 +364,14 @@ impl VimEditor {
         if let VimMode::Help = self.mode {
             return self.draw_help_menu();
         }
-
+    
         let mut stdout = io::stdout();
         execute!(
             stdout,
             terminal::Clear(terminal::ClearType::All),
             cursor::MoveTo(0, 0)
         )?;
-
+    
         // Display mode indicator
         match self.mode {
             VimMode::Normal => {
@@ -385,150 +385,95 @@ impl VimEditor {
                 print!(": {}", self.command_buffer);
             }
             VimMode::Help => {
-                // This is handled separately in draw_help_menu
                 return Ok(());
             }
         }
-
+    
         // Move cursor to beginning of next line
         execute!(stdout, cursor::MoveTo(0, 1))?;
         println!();
-
+    
         // Display spreadsheet
         let sheet = self.sheet.borrow();
-
+        const COL_WIDTH: usize = 10; // Fixed column width for all cells
+    
         // Column headers
         execute!(stdout, cursor::MoveTo(0, 2))?;
-        print!("{:3} ", ' ');
+        print!("    "); // Row number column space
         for j in 0..sheet.m.min(20) {
             let col_heading = crate::convert::num_to_alpha((j + 1) as u32);
-            print!("{:11} ", col_heading);
+            print!("{:^10}", col_heading); // Centered in COL_WIDTH spaces
         }
-
+    
         // Print each row
         for i in 0..sheet.n.min(20) {
-            // Go to beginning of line
             execute!(stdout, cursor::MoveTo(0, (i + 4) as u16))?;
-
-            // Row number (1-indexed)
-            print!("{:3} ", i + 1);
-
+            print!("{:3} ", i + 1); // Row number
+    
             for j in 0..sheet.m.min(20) {
                 let cell_index = sheet.get_cell(i, j);
                 let cell = &sheet.data[cell_index];
                 let format = &self.cell_formats[i][j];
-
-                // Highlight current cell with red border and content
-                if i == self.cursor_y && j == self.cursor_x {
-                    if cell.info.invalid {
-                        execute!(stdout, PrintStyledContent("[ERR]      ".red().bold()))?;
-                    } else {
-                        let value_str = format!("{:9}", cell.value);
-                        let formatted = format!("[{}]", value_str);
-                        execute!(stdout, PrintStyledContent(formatted.red().bold()))?;
-                    }
+    
+                // Create cell content with fixed width
+                let (content, is_error) = if cell.info.invalid {
+                    ("ERR".to_string(), true)
                 } else {
-                    // Format the value as a string first
-                    let value_str = if cell.info.invalid {
-                        "ERR".to_string()
+                    (format!("{}", cell.value), false)
+                };
+    
+                // Handle cursor cell with consistent width
+                if i == self.cursor_y && j == self.cursor_x {
+                    let cursor_content = if is_error {
+                        format!("[{:^6}]", "ERR")
                     } else {
-                        format!("{}", cell.value)
+                        format!("[{:^6}]", content)
                     };
-
-                    // Apply formatting with different methods depending on what's needed
-                    // Replace the problematic section in the redraw_screen method with this code:
-                    if format.bold || format.italic || format.underline || format.color.is_some() {
-                        // Create a styled string with the formatting we need
-                        let mut styled_content = value_str.stylize();
-
-                        // Apply color if set
-                        if let Some(color) = format.color {
-                            styled_content = styled_content.with(color);
-                        }
-
-                        // Apply text styles conditionally
-                        if format.bold {
-                            styled_content = styled_content.bold();
-                        }
-
-                        if format.italic {
-                            styled_content = styled_content.italic();
-                        }
-
-                        if format.underline {
-                            styled_content = styled_content.underlined();
-                        }
-
-                        // Print the styled content
-                        execute!(stdout, PrintStyledContent(styled_content))?;
-                    } else {
-                        // No formatting needed, just print plain
-                        print!("{:11} ", value_str);
+                    execute!(
+                        stdout,
+                        PrintStyledContent(cursor_content.red().bold())
+                    )?;
+                } else {
+                    // For normal cell with consistent width - apply padding first, then style
+                    let padded_content = format!("{:^10}", content);
+                    
+                    // Apply formatting to the padded content
+                    let mut styled_content = padded_content.stylize();
+                    if let Some(color) = format.color {
+                        styled_content = styled_content.with(color);
                     }
-                    // if format.bold || format.italic || format.underline || format.color.is_some() {
-                    //     // Create a base styled string
-                    //     let mut styled = value_str.stylize();
-
-                    //     // Apply all formatting options
-                    //     if let Some(color) = format.color {
-                    //         styled = styled.with(color);
-                    //     }
-
-                    //     if format.bold {
-                    //         styled = styled.bold();
-                    //     }
-
-                    //     if format.italic {
-                    //         styled = styled.italic();
-                    //     }
-
-                    //     if format.underline {
-                    //         styled = styled.underlined();
-                    //     }
-
-                    //     // Format with padding and execute
-                    //     let padded = format!("{:11}", value_str);
-                    //     execute!(
-                    //         stdout,
-                    //         PrintStyledContent(
-                    //             padded
-                    //                 .stylize()
-                    //                 .with(if let Some(c) = format.color {
-                    //                     c
-                    //                 } else {
-                    //                     Color::Reset
-                    //                 })
-                    //                 .bold_if(format.bold)
-                    //                 .italic_if(format.italic)
-                    //                 .underlined_if(format.underline)
-                    //         )
-                    //     )?;
-                    // } else {
-                    //     // No formatting needed, just print plain
-                    //     print!("{:11} ", value_str);
-                    // }
+                    if format.bold {
+                        styled_content = styled_content.bold();
+                    }
+                    if format.italic {
+                        styled_content = styled_content.italic();
+                    }
+                    if format.underline {
+                        styled_content = styled_content.underlined();
+                    }
+                    
+                    // Print the styled content
+                    execute!(stdout, PrintStyledContent(styled_content))?;
                 }
             }
         }
-
+    
         // Status line at bottom
-        let status_line_y = (sheet.n + 5).min(24) as u16;
+        let status_line_y = (sheet.n.min(20) + 5) as u16;
         execute!(stdout, cursor::MoveTo(0, status_line_y))?;
-
-        // Show command line if in command mode
+    
         if let VimMode::Command = self.mode {
             print!(":{}", self.command_buffer);
         } else {
-            // Show help tip
             print!("Press 'i' for insert mode, ':' for commands, ':h' for help, 'q' to quit");
         }
-
+    
         // Display error message if any
         if let Some((error_msg, _)) = &self.error_message {
             execute!(stdout, cursor::MoveTo(0, status_line_y + 1))?;
             execute!(stdout, PrintStyledContent(error_msg.as_str().red().bold()))?;
         }
-
+    
         stdout.flush()?;
         Ok(())
     }

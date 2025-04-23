@@ -7,20 +7,12 @@ use crate::info::{CellInfo, Info};
 use crate::list::{erase_list, push_front, ListMemPool, Node};
 use crate::status::StatusCode;
 
-// Visit status for DFS
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum VisitStatus {
     NotVisited = 0,
     InStack = 1,
     Visited = 2,
 }
-
-// Adjacency list structure
-// #[derive(Debug)]
-// pub struct AdjList {
-//     pub head: Option<Rc<RefCell<Node>>>,
-//     pub ptr: Option<Rc<RefCell<Node>>>,
-// }
 
 #[derive(Debug, Clone)]
 pub struct AdjList {
@@ -263,7 +255,10 @@ impl Graph {
             let mut cell_info = sheet_borrow.data[cell_idx].clone();
             drop(sheet_borrow);
 
+        // Only compute if not in literal mode
+        if !cell_info.literal_mode {
             apply_function(&mut cell_info, &self.sheet);
+        }
 
             let mut sheet_borrow = self.sheet.borrow_mut();
             sheet_borrow.data[cell_idx] = cell_info;
@@ -275,6 +270,7 @@ impl Graph {
         let new_info = &mut CellInfo {
             info: info.clone(),
             value: 0,
+            literal_mode: false, 
         };
 
         if !self.iterative_dfs(cell as i32, new_info) {
@@ -321,43 +317,3 @@ pub fn update_expression(graph: &mut Graph, cell: usize, info: &Info) -> Result<
     graph.update_expression(cell, info)
 }
 
-// pub fn update_expression(
-//     cell: usize,
-//     info: &Info,
-//     sheet: &Rc<RefCell<crate::sheet::Sheet>>, // Change parameter type
-// ) -> Result<(), StatusCode> {
-//     unsafe {
-//         if let Some(graph) = &mut GRAPH {
-//             // Just assign the Rc (no clone needed)
-//             graph.sheet = sheet.clone();
-//             // Update expression
-//             let result = graph.update_expression(cell, info);
-//             result
-//         } else {
-//             Err(StatusCode::InternalError)
-//         }
-//     }
-// }
-
-// // Update expression in the graph
-// pub fn update_expression(
-//     cell: usize,
-//     info: &Info,
-//     sheet: &mut crate::sheet::Sheet,
-// ) -> Result<(), StatusCode> {
-//     let sheet_rc = Rc::new(RefCell::new(sheet.clone()));
-//     unsafe {
-//         if let Some(graph) = &mut GRAPH {
-//             // Update graph's sheet reference
-//             graph.sheet = sheet_rc;
-//             // Update expression
-//             let result = graph.update_expression(cell, info);
-//             // Transfer any changes back to the original sheet
-//             let updated_sheet = graph.sheet.borrow();
-//             *sheet = updated_sheet.clone();
-//             result
-//         } else {
-//             Err(StatusCode::InternalError)
-//         }
-//     }
-// }

@@ -27,7 +27,6 @@ impl Info {
 pub struct CellInfo {
     pub info: Info,
     pub value: i32,
-    pub literal_mode: bool, 
 }
 
 #[derive(Debug, Clone, Copy, Default)]
