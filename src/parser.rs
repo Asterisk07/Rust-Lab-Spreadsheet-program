@@ -220,6 +220,16 @@ fn handle_other_commands(
     context: &mut ParserContext,
 ) -> Result<CommandInfo, ParseError> {
     match input {
+        "undo" => {
+            let mut cmd_info = CommandInfo::default();
+            cmd_info.lhs_cell = -2; // Special value for undo
+            Ok(cmd_info)
+        }
+        "redo" => {
+            let mut cmd_info = CommandInfo::default();
+            cmd_info.lhs_cell = -3; // Special value for redo
+            Ok(cmd_info)
+        }
         "disable_output" => {
             context.output_enabled = false;
             let mut cmd_info = CommandInfo::default();

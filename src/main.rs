@@ -14,7 +14,6 @@ mod graph;
 mod info;
 mod list;
 mod parser;
-// mod random;
 mod sheet;
 mod status;
 mod vector;
@@ -22,6 +21,15 @@ mod vector;
 use info::CommandInfo;
 use parser::ParserContext;
 use status::{StatusCode, print_status, set_status_code, start_time};
+use info::{CellInfo, Info};
+
+struct HistoryEntry {
+    cell_idx: usize,
+    info: Info,
+    value: i32,
+    literal_mode: bool,
+}
+
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -38,15 +46,12 @@ fn main() -> io::Result<()> {
         }
     };
 
-    // ... existing code ...
     unsafe {
         sheet::init_dimensions(m, n);
     }
-
-    // Set M and N (only once allowed)
-    // // Set M and N from command line args
-    // crate::sheet::M.set(m).expect("M already set");
-    // crate::sheet::N.set(n).expect("N already set");
+    // undo-redo stack initialization !!!
+    let mut undo_stack: Vec<HistoryEntry> = Vec::new();
+    let mut redo_stack: Vec<HistoryEntry> = Vec::new();
 
     // Initialize memory pool
     let mem_pool = Rc::new(RefCell::new(list::ListMemPool::new()));
@@ -58,14 +63,6 @@ fn main() -> io::Result<()> {
     // Initialize graph
     let mut graph = graph::Graph::new(n, m, sheet.clone(), mem_pool.clone());
 
-    // Initialize memory pool for linked lists
-    // list::init_mem_pool();
-
-    // Initialize graph for dependency tracking
-    // graph::init_graph();
-
-    // let mut sheet = sheet::Sheet::new(n, m);
-    // let sheet = Rc::new(RefCell::new(sheet::Sheet::new(n, m)));
     let mut parser_ctx = ParserContext::new();
     let mut stdout = io::stdout();
 
@@ -74,7 +71,7 @@ fn main() -> io::Result<()> {
     loop {
         if parser_ctx.output_enabled {
             // sheet.display()?;
-            sheet.borrow_mut().display(&mut parser_ctx)?; // Borrow for display
+            sheet.borrow_mut().display(&mut parser_ctx)?; // Borrow for display 
         }
 
         print_status();
@@ -96,25 +93,135 @@ fn main() -> io::Result<()> {
         if cmd_info.lhs_cell == -1 {
             continue;
         }
-
-        match graph::update_expression(&mut graph, cmd_info.lhs_cell as usize, &cmd_info.info) {
-            Ok(_) => {}
-            Err(_) => set_status_code(StatusCode::CyclicDep),
+        if cmd_info.lhs_cell == -2 {
+            // Handle Undo
+            if let Some(entry) = undo_stack.pop() {
+                let mut temp_cell_info = CellInfo {
+                    info: entry.info.clone(),
+                    value: entry.value,
+                    literal_mode: entry.literal_mode,
+                };
+        
+                // Cycle check for old dependencies
+                if !graph.iterative_dfs(entry.cell_idx as i32, &temp_cell_info) {
+                    undo_stack.push(entry);
+                    set_status_code(StatusCode::CyclicDep);
+                    continue;
+                }
+        
+                // Save current state to redo stack
+                let (current_info, current_value, current_literal) = {
+                    let sheet_borrow = sheet.borrow();
+                    (
+                        sheet_borrow.data[entry.cell_idx].info.clone(),
+                        sheet_borrow.data[entry.cell_idx].value,
+                        sheet_borrow.data[entry.cell_idx].literal_mode,
+                    )
+                };
+                redo_stack.push(HistoryEntry {
+                    cell_idx: entry.cell_idx,
+                    info: current_info,
+                    value: current_value,
+                    literal_mode: current_literal,
+                });
+        
+                // Revert the cell state
+                graph.delete_expression(entry.cell_idx as i32);
+                graph.add_expression(entry.cell_idx as i32, &temp_cell_info);
+                
+                {
+                    let mut sheet_borrow = sheet.borrow_mut();
+                    let cell = &mut sheet_borrow.data[entry.cell_idx];
+                    cell.info = entry.info;
+                    cell.value = entry.value;
+                    cell.literal_mode = true; // Preserve historical value
+                }
+        
+                graph.update_values();
+                graph.reset();
+            } else {
+                set_status_code(StatusCode::NothingToUndo);
+            }
+            continue;
+        } else if cmd_info.lhs_cell == -3 {
+            // Handle Redo (similar structure to undo)
+            if let Some(entry) = redo_stack.pop() {
+                let mut temp_cell_info = CellInfo {
+                    info: entry.info.clone(),
+                    value: entry.value,
+                    literal_mode: entry.literal_mode,
+                };
+        
+                if !graph.iterative_dfs(entry.cell_idx as i32, &temp_cell_info) {
+                    redo_stack.push(entry);
+                    set_status_code(StatusCode::CyclicDep);
+                    continue;
+                }
+        
+                // Save current state to undo stack
+                let (current_info, current_value, current_literal) = {
+                    let sheet_borrow = sheet.borrow();
+                    (
+                        sheet_borrow.data[entry.cell_idx].info.clone(),
+                        sheet_borrow.data[entry.cell_idx].value,
+                        sheet_borrow.data[entry.cell_idx].literal_mode,
+                    )
+                };
+                undo_stack.push(HistoryEntry {
+                    cell_idx: entry.cell_idx,
+                    info: current_info,
+                    value: current_value,
+                    literal_mode: current_literal,
+                });
+        
+                // Apply redo state
+                graph.delete_expression(entry.cell_idx as i32);
+                graph.add_expression(entry.cell_idx as i32, &temp_cell_info);
+                
+                {
+                    let mut sheet_borrow = sheet.borrow_mut();
+                    let cell = &mut sheet_borrow.data[entry.cell_idx];
+                    cell.info = entry.info;
+                    cell.value = entry.value;
+                    cell.literal_mode = true;
+                }
+        
+                graph.update_values();
+                graph.reset();
+            } else {
+                set_status_code(StatusCode::NothingToRedo);
+            }
+            continue;
         }
-        // match graph::update_expression(
-        //     cmd_info.lhs_cell as usize,
-        //     &cmd_info.info,
-        //     &sheet, // Pass the Rc directly
-        // ) {
-        //     Ok(_) => {}
-        //     Err(_) => set_status_code(StatusCode::CyclicDep),
-        // }
 
-        // match graph::update_expression(cmd_info.lhs_cell as usize, &cmd_info.info, &mut sheet)
-        // {
-        //     Ok(_) => {}
-        //     Err(_) => set_status_code(StatusCode::CyclicDep),
-        // }
+        let cell_idx = cmd_info.lhs_cell as usize;
+
+        // Save current state to undo stack
+        let (current_info, current_value, current_literal) = {
+            let sheet_borrow = sheet.borrow();
+            (
+                sheet_borrow.data[cell_idx].info.clone(),
+                sheet_borrow.data[cell_idx].value,
+                sheet_borrow.data[cell_idx].literal_mode,
+            )
+        };
+        undo_stack.push(HistoryEntry {
+            cell_idx,
+            info: current_info,
+            value: current_value,
+            literal_mode: current_literal,
+        });
+
+        match graph::update_expression(&mut graph, cell_idx as usize, &cmd_info.info) {
+            Ok(_) => {
+                redo_stack.clear();
+                sheet.borrow_mut().data[cell_idx].literal_mode = false; // Reset literal mode
+            }
+            Err(code) => {
+                set_status_code(code);
+                undo_stack.pop();
+            }
+        }
     }
 }
 

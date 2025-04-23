@@ -12,6 +12,8 @@ pub enum StatusCode {
     InvalidCell,
     InvalidRange,
     CyclicDep,
+    NothingToUndo,    
+    NothingToRedo,    
     OutOfBounds,
     InvalidValue,
     InternalError,
@@ -22,13 +24,15 @@ lazy_static! {
     static ref LAST_CMD_TIME: Mutex<SystemTime> = Mutex::new(SystemTime::now());
 }
 
-const STATUS_MSG: [&str; 8] = [
+const STATUS_MSG: [&str; 10] = [
     "ok",
     "invalid command",
     "overflow occurred",
     "invalid cell",
     "invalid range",
     "cyclic dependency found",
+    "Nothing to undo",
+    "Nothing to redo",
     "scrolling out of sheet",
     "invalid value",
 ];

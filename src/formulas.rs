@@ -294,6 +294,9 @@ pub fn divide(cell_info: &mut CellInfo, sheet_rc: &Rc<RefCell<crate::sheet::Shee
 
 // Apply a function to a cell based on its function ID
 pub fn apply_function(cell_info: &mut CellInfo, sheet_rc: &Rc<RefCell<crate::sheet::Sheet>>) {
+    if cell_info.literal_mode {
+        return; // Skip computation if in literal mode
+    }
     let func_idx = cell_info.info.function_id as usize;
     if func_idx < FPTR.len() {
         FPTR[func_idx](cell_info, sheet_rc);
