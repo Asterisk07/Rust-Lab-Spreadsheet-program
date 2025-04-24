@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use crate::convert::num_to_alpha;
 use crate::info::CellInfo;
+use crate::parser::ParserContext;
 use crate::status::StatusCode;
 
 // pub const N_MAX: usize = 999;
@@ -87,27 +88,27 @@ impl Sheet {
         self.set_position(new_x, new_y)
     }
 
-    pub fn display(&self) -> io::Result<()> {
-        print!("{:3} ", ' ');
+    pub fn display(&mut self, context: &mut ParserContext) -> io::Result<()> {
+        self.px = context.px;
+        self.py = context.py;
+        print!("{:3} ", ' '); // Space for row numbers column
         for j in self.py..min(self.py + 10, self.m) {
             let col_heading = num_to_alpha((j + 1) as u32);
-            print!("{:11} ", col_heading);
+            print!("{:>11} ", col_heading); // Right-align headers
         }
         println!();
 
         // Print each row
         for i in self.px..min(self.px + 10, self.n) {
-            // Print the row number (1-indexed) with a field width of 3
-            print!("{:3} ", i + 1);
+            print!("{:3} ", i + 1); // Row number right-aligned in 3 characters
             for j in self.py..min(self.py + 10, self.m) {
                 let cell_index = self.get_cell(i, j);
                 let cell = &self.data[cell_index];
 
-                // If the cell's invalid flag is set, print "ERR"
                 if cell.info.invalid {
-                    print!("{:11} ", "ERR");
+                    print!("{:>11} ", "ERR"); // Right-align "ERR"
                 } else {
-                    print!("{:11} ", cell.value);
+                    print!("{:>11} ", cell.value); // Right-align cell value
                 }
             }
             println!();

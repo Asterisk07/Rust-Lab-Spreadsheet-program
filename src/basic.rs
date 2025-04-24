@@ -6,11 +6,7 @@ macro_rules! min {
     ($x:expr, $y:expr) => {{
         let x_val = $x;
         let y_val = $y;
-        if x_val < y_val {
-            x_val
-        } else {
-            y_val
-        }
+        if x_val < y_val { x_val } else { y_val }
     }};
 }
 
@@ -19,11 +15,7 @@ macro_rules! max {
     ($x:expr, $y:expr) => {{
         let x_val = $x;
         let y_val = $y;
-        if x_val > y_val {
-            x_val
-        } else {
-            y_val
-        }
+        if x_val > y_val { x_val } else { y_val }
     }};
 }
 

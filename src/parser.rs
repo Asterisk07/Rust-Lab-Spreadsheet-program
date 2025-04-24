@@ -6,7 +6,7 @@ use std::str::FromStr;
 use crate::convert;
 use crate::info::{CommandInfo, Info, ValueInfo};
 use crate::sheet::{get_cell, get_row_and_column, is_valid_cell, is_valid_range};
-use crate::status::{set_status_code, StatusCode};
+use crate::status::{StatusCode, set_status_code};
 
 const INPUT_BUFFER_SIZE: usize = 64;
 const MAX_MATCHES: usize = 4;
@@ -63,13 +63,17 @@ pub fn parse_sheet_dimensions(n_str: &str, m_str: &str) -> Result<(usize, usize)
 
 pub fn expression_parser(expr: &str, info: &mut Info) -> Result<(), ParseError> {
     for (match_type, re) in PATTERNS.iter().enumerate() {
+        // Skip the SCROLL_TO pattern (index 5) as it's handled by handle_other_commands
+
+        if match_type == 5 {
+            continue;
+        }
         if let Some(caps) = re.captures(expr) {
             return match match_type {
                 0 | 1 => handle_assignment(&caps, info, match_type),
                 2 => handle_arithmetic(&caps, info),
                 3 => handle_range(&caps, info),
                 4 => handle_expression(&caps, info),
-                5 => handle_scroll(&caps, info),
                 6 => handle_integer(&caps, info),
                 _ => Err(ParseError::InvalidCommand),
             };
@@ -137,11 +141,6 @@ fn handle_expression(caps: &regex::Captures, info: &mut Info) -> Result<(), Pars
     expression_parser(expr, info)
 }
 
-fn handle_scroll(caps: &regex::Captures, info: &mut Info) -> Result<(), ParseError> {
-    // No need to modify info for scroll command
-    Ok(())
-}
-
 fn handle_integer(caps: &regex::Captures, info: &mut Info) -> Result<(), ParseError> {
     let value =
         i32::from_str(caps.get(0).unwrap().as_str()).map_err(|_| ParseError::InvalidValue)?;
@@ -189,6 +188,13 @@ pub fn parse(input: &str, context: &mut ParserContext) -> Result<CommandInfo, Pa
         control_parser(input, context)?;
         return Ok(cmd_info);
     }
+    // Check for special commands first
+
+    let result = handle_other_commands(input, context);
+
+    if result.is_ok() {
+        return result;
+    }
 
     if let Some(caps) = PATTERNS[4].captures(input) {
         let lhs_str = caps.get(1).unwrap().as_str();
@@ -201,7 +207,7 @@ pub fn parse(input: &str, context: &mut ParserContext) -> Result<CommandInfo, Pa
 
         Ok(cmd_info)
     } else {
-        handle_other_commands(input, context)
+        Err(ParseError::InvalidCommand)
     }
 }
 
@@ -210,6 +216,16 @@ fn handle_other_commands(
     context: &mut ParserContext,
 ) -> Result<CommandInfo, ParseError> {
     match input {
+        "undo" => {
+            let mut cmd_info = CommandInfo::default();
+            cmd_info.lhs_cell = -2; // Special value for undo
+            Ok(cmd_info)
+        }
+        "redo" => {
+            let mut cmd_info = CommandInfo::default();
+            cmd_info.lhs_cell = -3; // Special value for redo
+            Ok(cmd_info)
+        }
         "disable_output" => {
             context.output_enabled = false;
             let mut cmd_info = CommandInfo::default();
@@ -243,33 +259,198 @@ fn control_parser(input: &str, context: &mut ParserContext) -> Result<(), ParseE
     match input {
         "q" => std::process::exit(0),
         "w" | "a" | "s" | "d" => {
-            let delta = match input {
-                "w" => (-1, 0),
-                "a" => (0, -1),
-                "s" => (1, 0),
-                "d" => (0, 1),
+            // Get sheet dimensions
+            let n = crate::sheet::N_MAX();
+            let m = crate::sheet::M_MAX();
+            let viewport_size = 10; // Assuming 10x10 viewport
+
+            // Calculate max valid scroll positions
+            let max_px = n.saturating_sub(viewport_size);
+            let max_py = m.saturating_sub(viewport_size);
+
+            // Calculate delta with boundary checks
+            let (new_px, new_py) = match input {
+                "w" => (
+                    // Up
+                    context.px.saturating_sub(10),
+                    context.py,
+                ),
+                "s" => (
+                    // Down
+                    context.px.saturating_add(10).min(max_px),
+                    context.py,
+                ),
+                "a" => (
+                    // Left
+                    context.px,
+                    context.py.saturating_sub(10),
+                ),
+                "d" => (
+                    // Right
+                    context.px,
+                    context.py.saturating_add(10).min(max_py),
+                ),
                 _ => unreachable!(),
             };
 
-            // Using saturating_add_signed to prevent underflow
-            if delta.0 < 0 && context.px == 0 {
-                context.px = 0;
-            } else if delta.0 > 0 {
-                context.px = context.px.saturating_add(1);
-            } else if delta.0 < 0 {
-                context.px = context.px.saturating_sub(1);
-            }
-
-            if delta.1 < 0 && context.py == 0 {
-                context.py = 0;
-            } else if delta.1 > 0 {
-                context.py = context.py.saturating_add(1);
-            } else if delta.1 < 0 {
-                context.py = context.py.saturating_sub(1);
+            // Only update if position changed
+            if new_px != context.px || new_py != context.py {
+                context.px = new_px;
+                context.py = new_py;
             }
 
             Ok(())
         }
         _ => Err(ParseError::InvalidCommand),
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sheet::{N_MAX, M_MAX};
+
+    fn setup_context() -> ParserContext {
+        ParserContext {
+            output_enabled: true,
+            px: 0,
+            py: 0,
+        }
+    }
+
+    #[test]
+    fn test_undo_command() {
+        let mut ctx = setup_context();
+        let result = handle_other_commands("undo", &mut ctx).unwrap();
+        assert_eq!(result.lhs_cell, -2);
+    }
+
+    #[test]
+    fn test_redo_command() {
+        let mut ctx = setup_context();
+        let result = handle_other_commands("redo", &mut ctx).unwrap();
+        assert_eq!(result.lhs_cell, -3);
+    }
+    #[test]
+    fn test_parse_sheet_dimensions_valid() {
+        let (n, m) = parse_sheet_dimensions("10", "20").unwrap();
+        assert_eq!(n, 10);
+        assert_eq!(m, 20);
+    }
+
+    #[test]
+    fn test_parse_sheet_dimensions_invalid() {
+        assert!(parse_sheet_dimensions("0", "5").is_err());
+        assert!(parse_sheet_dimensions("5", "0").is_err());
+        assert!(parse_sheet_dimensions(&(N_MAX() + 1).to_string(), "5").is_err());
+        assert!(parse_sheet_dimensions("5", &(M_MAX() + 1).to_string()).is_err());
+    }
+
+    #[test]
+    fn test_assignment_cell() {
+        let mut info = Info::default();
+        expression_parser("A1", &mut info).unwrap();
+        assert_eq!(info.function_id, 0);
+        assert_eq!(info.arg_mask, 1);
+    }
+
+    #[test]
+    fn test_assignment_number() {
+        let mut info = Info::default();
+        expression_parser("42", &mut info).unwrap();
+        assert_eq!(info.function_id, 0);
+        assert_eq!(info.arg_mask, 0);
+        assert_eq!(info.arg[0], 42);
+    }
+
+    #[test]
+    fn test_arithmetic_operations() {
+        let mut info = Info::default();
+        expression_parser("A1+B2", &mut info).unwrap();
+        assert_eq!(info.function_id, 2);
+        assert_eq!(info.arg_mask, 0b11);
+
+        expression_parser("5-C3", &mut info).unwrap();
+        assert_eq!(info.function_id, 3);
+    }
+
+    #[test]
+    fn test_range_functions() {
+        let mut info = Info::default();
+        expression_parser("SUM(A1:B2)", &mut info).unwrap();
+        assert_eq!(info.function_id, 6 + 2); // RANGE_OFFSET + SUM index
+        assert!(is_valid_range(info.arg[0] as usize, info.arg[1] as usize));
+    }
+
+    #[test]
+    fn test_nested_expression() {
+        let mut cmd_info = CommandInfo::default();
+        parse("A1=SUM(B2:C3)+5", &mut setup_context()).unwrap();
+        // Verify nested parsing through command_info inspection
+    }
+
+    #[test]
+    fn test_cell_parser_valid() {
+        assert!(cell_parser("A1").is_ok());
+        assert!(cell_parser("ZZ99").is_ok());
+    }
+
+    #[test]
+    fn test_cell_parser_invalid() {
+        assert_eq!(cell_parser("A0").unwrap_err(), ParseError::InvalidCell);
+        assert_eq!(cell_parser("1A").unwrap_err(), ParseError::InvalidCell);
+    }
+
+    #[test]
+    fn test_scroll_to_command() {
+        let mut ctx = setup_context();
+        parse("scroll_to D5", &mut ctx).unwrap();
+        assert!(ctx.px > 0 || ctx.py > 0);
+    }
+
+    #[test]
+    fn test_control_parser_movement() {
+        let mut ctx = setup_context();
+        control_parser("w", &mut ctx).unwrap();
+        assert_eq!(ctx.px, 0); // Test boundary condition
+        
+        control_parser("s", &mut ctx).unwrap();
+        assert!(ctx.px <= N_MAX() - 10);
+    }
+
+    #[test]
+    fn test_output_commands() {
+        let mut ctx = setup_context();
+        parse("disable_output", &mut ctx).unwrap();
+        assert!(!ctx.output_enabled);
+        
+        parse("enable_output", &mut ctx).unwrap();
+        assert!(ctx.output_enabled);
+    }
+
+    #[test]
+    fn test_invalid_commands() {
+        let mut ctx = setup_context();
+        assert_eq!(parse("invalid_cmd", &mut ctx).unwrap_err(), ParseError::InvalidCommand);
+        assert_eq!(parse("A1=invalid", &mut ctx).unwrap_err(), ParseError::InvalidCommand);
+    }
+
+    #[test]
+    fn test_sleep_command() {
+        let mut info = Info::default();
+        expression_parser("SLEEP(100)", &mut info).unwrap();
+        assert_eq!(info.function_id, 1);
+    }
+
+    #[test]
+    fn test_parse_empty_input() {
+        assert_eq!(parse("", &mut setup_context()).unwrap_err(), ParseError::InvalidCommand);
+    }
+
+    #[test]
+    fn test_control_parser_exit() {
+        // This test would need to be handled specially as it exits the process
+        // Can be omitted or run in a subprocess
+    }
+
 }

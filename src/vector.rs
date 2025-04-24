@@ -15,7 +15,8 @@ impl Vector {
         if new_capacity < self.container.len() {
             return false;
         }
-        self.container.reserve_exact(new_capacity - self.container.capacity());
+        self.container
+            .reserve_exact(new_capacity - self.container.capacity());
         true
     }
 

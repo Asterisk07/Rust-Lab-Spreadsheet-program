@@ -1,5 +1,6 @@
 // status.rs
 use lazy_static::lazy_static;
+use std::io::{self, Write};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
 
@@ -11,6 +12,8 @@ pub enum StatusCode {
     InvalidCell,
     InvalidRange,
     CyclicDep,
+    NothingToUndo,
+    NothingToRedo,
     OutOfBounds,
     InvalidValue,
     InternalError,
@@ -21,13 +24,15 @@ lazy_static! {
     static ref LAST_CMD_TIME: Mutex<SystemTime> = Mutex::new(SystemTime::now());
 }
 
-const STATUS_MSG: [&str; 8] = [
+const STATUS_MSG: [&str; 10] = [
     "ok",
     "invalid command",
     "overflow occurred",
     "invalid cell",
     "invalid range",
     "cyclic dependency found",
+    "Nothing to undo",
+    "Nothing to redo",
     "scrolling out of sheet",
     "invalid value",
 ];
@@ -55,5 +60,6 @@ pub fn print_status() {
     let status = *STATUS_CODE.lock().unwrap();
     let msg = STATUS_MSG[status as usize];
 
-    println!("[{:.1}] ({}) >", elapsed, msg);
+    print!("[{:.1}] ({}) >", elapsed, msg);
+    io::stdout().flush().unwrap();
 }

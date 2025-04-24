@@ -28,14 +28,20 @@ fn compare(f1name: &str, f2name: &str) -> io::Result<i32> {
 
         // Process chunks
         let s1 = if bytes1 > 0 {
-            let end = buf1[..bytes1].iter().position(|&c| c == b'\n').unwrap_or(bytes1);
+            let end = buf1[..bytes1]
+                .iter()
+                .position(|&c| c == b'\n')
+                .unwrap_or(bytes1);
             String::from_utf8_lossy(&buf1[..end]).to_string()
         } else {
             String::new()
         };
 
         let s2 = if bytes2 > 0 {
-            let end = buf2[..bytes2].iter().position(|&c| c == b'\n').unwrap_or(bytes2);
+            let end = buf2[..bytes2]
+                .iter()
+                .position(|&c| c == b'\n')
+                .unwrap_or(bytes2);
             String::from_utf8_lossy(&buf2[..end]).to_string()
         } else {
             String::new()
@@ -56,8 +62,14 @@ fn compare(f1name: &str, f2name: &str) -> io::Result<i32> {
                     break;
                 }
                 line += 1;
-                let end = buf2[..bytes].iter().position(|&c| c == b'\n').unwrap_or(bytes);
-                println!("Line {line}: Extra in second file: {}", String::from_utf8_lossy(&buf2[..end]));
+                let end = buf2[..bytes]
+                    .iter()
+                    .position(|&c| c == b'\n')
+                    .unwrap_or(bytes);
+                println!(
+                    "Line {line}: Extra in second file: {}",
+                    String::from_utf8_lossy(&buf2[..end])
+                );
                 diffs += 1;
             }
             break;
@@ -75,8 +87,14 @@ fn compare(f1name: &str, f2name: &str) -> io::Result<i32> {
                     break;
                 }
                 line += 1;
-                let end = buf1[..bytes].iter().position(|&c| c == b'\n').unwrap_or(bytes);
-                println!("Line {line}: Extra in first file: {}", String::from_utf8_lossy(&buf1[..end]));
+                let end = buf1[..bytes]
+                    .iter()
+                    .position(|&c| c == b'\n')
+                    .unwrap_or(bytes);
+                println!(
+                    "Line {line}: Extra in first file: {}",
+                    String::from_utf8_lossy(&buf1[..end])
+                );
                 diffs += 1;
             }
             break;
