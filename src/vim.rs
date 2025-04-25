@@ -72,8 +72,8 @@ impl VimEditor {
             cell_expressions: HashMap::new(),
             start_row: 0,
             start_col: 0,
-            display_rows: 10,
-            display_cols: 10,
+            display_rows: 20,
+            display_cols: 20,
             col_width: 10,
         }
     }
