@@ -308,7 +308,7 @@ fn control_parser(input: &str, context: &mut ParserContext) -> Result<(), ParseE
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sheet::{N_MAX, M_MAX};
+    use crate::sheet::{M_MAX, N_MAX};
 
     fn setup_context() -> ParserContext {
         ParserContext {
@@ -413,7 +413,7 @@ mod tests {
         let mut ctx = setup_context();
         control_parser("w", &mut ctx).unwrap();
         assert_eq!(ctx.px, 0); // Test boundary condition
-        
+
         control_parser("s", &mut ctx).unwrap();
         assert!(ctx.px <= N_MAX() - 10);
     }
@@ -423,7 +423,7 @@ mod tests {
         let mut ctx = setup_context();
         parse("disable_output", &mut ctx).unwrap();
         assert!(!ctx.output_enabled);
-        
+
         parse("enable_output", &mut ctx).unwrap();
         assert!(ctx.output_enabled);
     }
@@ -431,8 +431,14 @@ mod tests {
     #[test]
     fn test_invalid_commands() {
         let mut ctx = setup_context();
-        assert_eq!(parse("invalid_cmd", &mut ctx).unwrap_err(), ParseError::InvalidCommand);
-        assert_eq!(parse("A1=invalid", &mut ctx).unwrap_err(), ParseError::InvalidCommand);
+        assert_eq!(
+            parse("invalid_cmd", &mut ctx).unwrap_err(),
+            ParseError::InvalidCommand
+        );
+        assert_eq!(
+            parse("A1=invalid", &mut ctx).unwrap_err(),
+            ParseError::InvalidCommand
+        );
     }
 
     #[test]
@@ -444,7 +450,10 @@ mod tests {
 
     #[test]
     fn test_parse_empty_input() {
-        assert_eq!(parse("", &mut setup_context()).unwrap_err(), ParseError::InvalidCommand);
+        assert_eq!(
+            parse("", &mut setup_context()).unwrap_err(),
+            ParseError::InvalidCommand
+        );
     }
 
     #[test]
@@ -452,5 +461,4 @@ mod tests {
         // This test would need to be handled specially as it exits the process
         // Can be omitted or run in a subprocess
     }
-
 }

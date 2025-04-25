@@ -18,6 +18,17 @@ const ERROR_DURATION: u64 = 2;
 use crate::sheet::Sheet;
 use crate::status::{StatusCode, print_status, set_status_code, start_time};
 use std::collections::HashMap;
+#[derive(Clone)]
+struct CellChange {
+    cell_idx: usize,
+    previous_expr: Option<String>,
+    previous_value: i32,
+    previous_literal_mode: bool,
+    previous_invalid: bool,
+}
+
+type Transaction = Vec<CellChange>;
+
 pub enum VimMode {
     Normal,
     Insert,
@@ -35,6 +46,9 @@ pub struct CellFormat {
 }
 
 pub struct VimEditor {
+    undo_stack: Vec<Transaction>,
+    redo_stack: Vec<Transaction>,
+    current_transaction: Option<Transaction>,
     sheet: Rc<RefCell<Sheet>>,
     cursor_x: usize,
     cursor_y: usize,
@@ -60,6 +74,9 @@ impl VimEditor {
         let formats = vec![vec![CellFormat::default(); m]; n];
 
         Self {
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            current_transaction: None,
             sheet,
             cursor_x: 0,
             cursor_y: 0,
@@ -77,7 +94,33 @@ impl VimEditor {
             col_width: 10,
         }
     }
+    fn start_transaction(&mut self) {
+        self.current_transaction = Some(Vec::new());
+    }
 
+    fn commit_transaction(&mut self) {
+        if let Some(transaction) = self.current_transaction.take() {
+            self.undo_stack.push(transaction);
+            self.redo_stack.clear();
+        }
+    }
+
+    fn record_cell_change(&mut self, cell_idx: usize) {
+        if let Some(transaction) = &mut self.current_transaction {
+            if !transaction.iter().any(|cc| cc.cell_idx == cell_idx) {
+                let sheet = self.sheet.borrow();
+                let cell_info = sheet.get(cell_idx);
+                let previous_expr = self.cell_expressions.get(&cell_idx).cloned();
+                transaction.push(CellChange {
+                    cell_idx,
+                    previous_expr,
+                    previous_value: cell_info.value,
+                    previous_literal_mode: cell_info.literal_mode,
+                    previous_invalid: cell_info.info.invalid,
+                });
+            }
+        }
+    }
     pub fn run(&mut self) -> io::Result<()> {
         let mut stdout = io::stdout();
 
@@ -176,7 +219,9 @@ impl VimEditor {
 
             KeyCode::Enter => {
                 if !self.current_input.is_empty() {
+                    self.start_transaction();
                     let cell_idx = self.sheet.borrow().get_cell(self.cursor_y, self.cursor_x);
+                    self.record_cell_change(cell_idx);
 
                     match self.evaluate_expression(&self.current_input) {
                         Ok(value) => {
@@ -207,7 +252,8 @@ impl VimEditor {
                             ));
                         }
                     }
-
+                    self.update_dependent_cells(cell_idx);
+                    self.commit_transaction();
                     self.current_input.clear();
                     self.mode = VimMode::Normal;
                     // self.current_input.clear();
@@ -229,91 +275,6 @@ impl VimEditor {
         }
         false
     }
-
-    // // Modify the handle_insert_mode function
-    // fn handle_insert_mode(&mut self, event: KeyEvent) -> bool {
-    //     match event.code {
-    //         // Exit insert mode
-    //         KeyCode::Esc => {
-    //             self.mode = VimMode::Normal;
-    //             self.current_input.clear();
-    //         }
-
-    //         KeyCode::Enter => {
-    //             // Parse and evaluate the expression
-    //             if !self.current_input.is_empty() {
-    //                 let result = self.evaluate_expression(&self.current_input);
-
-    //                 // Update the cell with the result
-    //                 let cell_idx = self.sheet.borrow().get_cell(self.cursor_y, self.cursor_x);
-    //                 let mut sheet = self.sheet.borrow_mut();
-    //                 let mut cell_info = sheet.get(cell_idx);
-
-    //                 // Store a potential error message
-    //                 // let mut error_msg = None;
-
-    //                 // match result {
-    //                 //     Ok(value) => {
-    //                 //         cell_info.value = value;
-    //                 //         cell_info.info.invalid = false;
-    //                 //     }
-    //                 //     Err(_) => {
-    //                 //         // Set cell to error state
-    //                 //         cell_info.info.invalid = true;
-    //                 //         self.set_error_message(format!(
-    //                 //             "Invalid expression: {}",
-    //                 //             self.current_input
-    //                 //         ));
-    //                 //     }
-    //                 // }
-
-    //                 match result {
-    //                     Ok(value) => {
-    //                         cell_info.value = value;
-    //                         cell_info.info.invalid = false;
-    //                     }
-    //                     Err(_) => {
-    //                         // Set cell to error state
-    //                         cell_info.info.invalid = true;
-    //                         // error_msg = Some(format!("Invalid expression: {}", self.current_input));
-
-    //                         // self.set_error_message();
-    //                         self.error_message = Some((
-    //                             format!("Invalid expression: {}", self.current_input),
-    //                             Instant::now(),
-    //                         ));
-
-    //                         // self.set_error_message(format!(
-    //                         //     "Invalid expression: {} ({})",
-    //                         //     self.current_input, error_msg
-    //                         // ));
-    //                     }
-    //                 }
-    //                 sheet.set(cell_idx, cell_info);
-    //                 // Set error message after sheet is no longer borrowed
-    //                 self.current_input.clear();
-    //                 // if let Some(msg) = error_msg {
-    //                 //     self.set_error_message(msg);
-    //                 // }
-    //             }
-    //         }
-
-    //         KeyCode::Char(c) => {
-    //             // Allow alphanumeric characters and operators
-    //             if c.is_alphanumeric() || "+-*/".contains(c) {
-    //                 self.current_input.push(c);
-    //             }
-    //         }
-
-    //         KeyCode::Backspace => {
-    //             // Remove last character
-    //             self.current_input.pop();
-    //         }
-
-    //         _ => {}
-    //     }
-    //     false
-    // }
 
     fn evaluate_expression(&self, expr: &str) -> Result<i32, &'static str> {
         // Check if it's a simple number
@@ -446,9 +407,9 @@ impl VimEditor {
                         cell_info.value = value;
                         cell_info.info.invalid = false;
                         sheet.set(idx, cell_info);
-
-                        // Continue updating the dependency chain
                         drop(sheet);
+                        self.record_cell_change(idx);
+                        // Continue updating the dependency chain
                         self.update_dependent_cells(idx);
                     }
                     Err(_) => {
@@ -462,7 +423,77 @@ impl VimEditor {
             }
         }
     }
+    fn undo(&mut self) {
+        if let Some(transaction) = self.undo_stack.pop() {
+            let mut redo_transaction = Vec::new();
 
+            for change in transaction.iter().rev() {
+                let cell_idx = change.cell_idx;
+                let mut sheet = self.sheet.borrow_mut();
+                let mut cell_info = sheet.get(cell_idx);
+
+                // Capture current state for redo
+                redo_transaction.push(CellChange {
+                    cell_idx,
+                    previous_expr: self.cell_expressions.get(&cell_idx).cloned(),
+                    previous_value: cell_info.value,
+                    previous_literal_mode: cell_info.literal_mode,
+                    previous_invalid: cell_info.info.invalid,
+                });
+
+                // Revert to previous state
+                cell_info.value = change.previous_value;
+                cell_info.literal_mode = change.previous_literal_mode;
+                cell_info.info.invalid = change.previous_invalid;
+                sheet.set(cell_idx, cell_info);
+
+                // Update expressions map
+                if let Some(expr) = &change.previous_expr {
+                    self.cell_expressions.insert(cell_idx, expr.clone());
+                } else {
+                    self.cell_expressions.remove(&cell_idx);
+                }
+            }
+
+            self.redo_stack.push(redo_transaction);
+        }
+    }
+
+    fn redo(&mut self) {
+        if let Some(transaction) = self.redo_stack.pop() {
+            let mut undo_transaction = Vec::new();
+
+            for change in transaction.iter().rev() {
+                let cell_idx = change.cell_idx;
+                let mut sheet = self.sheet.borrow_mut();
+                let mut cell_info = sheet.get(cell_idx);
+
+                // Capture current state for undo
+                undo_transaction.push(CellChange {
+                    cell_idx,
+                    previous_expr: self.cell_expressions.get(&cell_idx).cloned(),
+                    previous_value: cell_info.value,
+                    previous_literal_mode: cell_info.literal_mode,
+                    previous_invalid: cell_info.info.invalid,
+                });
+
+                // Apply redo change
+                cell_info.value = change.previous_value;
+                cell_info.literal_mode = change.previous_literal_mode;
+                cell_info.info.invalid = change.previous_invalid;
+                sheet.set(cell_idx, cell_info);
+
+                // Update expressions map
+                if let Some(expr) = &change.previous_expr {
+                    self.cell_expressions.insert(cell_idx, expr.clone());
+                } else {
+                    self.cell_expressions.remove(&cell_idx);
+                }
+            }
+
+            self.undo_stack.push(undo_transaction);
+        }
+    }
     fn parse_token(&self, token: &str) -> Result<i32, &'static str> {
         // If token is a cell reference
         if !token.is_empty() && token.chars().next().unwrap_or(' ').is_ascii_alphabetic() {
@@ -544,6 +575,12 @@ impl VimEditor {
 
         if cmd == "q" || cmd == "quit" {
             std::process::exit(0);
+        } else if cmd == "undo" {
+            self.undo();
+            self.last_status = StatusCode::Ok;
+        } else if cmd == "redo" {
+            self.redo();
+            self.last_status = StatusCode::Ok;
         } else if cmd == "w" || cmd == "write" {
             // Save functionality could be implemented here
             self.last_status = StatusCode::Ok;
