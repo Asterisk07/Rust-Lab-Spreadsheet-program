@@ -11,7 +11,8 @@ showata = "0.1" # for interactive
 lazy_static = "1.4" #for pattern matching
 regex = "1" #parsing
 
-
+[dev-dependencies]
+tempfile = "3.3.0"
 
 #autograder main file
 # [[bin]]

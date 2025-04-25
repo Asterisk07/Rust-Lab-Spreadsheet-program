@@ -1,4 +1,8 @@
 // vim.rs
+//! This module is integrated vim for the spreadsheet system.
+
+#![cfg(not(tarpaulin_include))]
+
 use crossterm::{
     cursor,
     event::{self, KeyCode, KeyEvent, KeyModifiers},
@@ -94,17 +98,22 @@ impl VimEditor {
             col_width: 10,
         }
     }
+    /// Starts a new cell modification transaction for undo/redo tracking.
     fn start_transaction(&mut self) {
         self.current_transaction = Some(Vec::new());
     }
-
+    /// Commits the current transaction to the undo stack and clears the redo stack.
     fn commit_transaction(&mut self) {
         if let Some(transaction) = self.current_transaction.take() {
             self.undo_stack.push(transaction);
             self.redo_stack.clear();
         }
     }
-
+    /// Records the previous state of a cell before a change, for undo/redo tracking.
+    ///
+    /// # Arguments
+    ///
+    /// * `cell_idx` - The index of the cell being modified.
     fn record_cell_change(&mut self, cell_idx: usize) {
         if let Some(transaction) = &mut self.current_transaction {
             if !transaction.iter().any(|cc| cc.cell_idx == cell_idx) {
@@ -121,6 +130,9 @@ impl VimEditor {
             }
         }
     }
+    /// Launches the Vim editor and starts the main input loop.
+    ///
+    /// Returns an `io::Result` indicating success or failure.
     pub fn run(&mut self) -> io::Result<()> {
         let mut stdout = io::stdout();
 
@@ -155,7 +167,9 @@ impl VimEditor {
 
         Ok(())
     }
-
+    /// Handles key events depending on the current Vim mode.
+    ///
+    /// Returns `true` if the event signals to exit the application.
     fn handle_key_event(&mut self, event: KeyEvent) -> bool {
         match self.mode {
             VimMode::Normal => self.handle_normal_mode(event),
@@ -275,7 +289,11 @@ impl VimEditor {
         }
         false
     }
-
+    /// Evaluates a string expression into an integer result.
+    ///
+    /// Supports numbers, cell references (e.g., A1), and basic arithmetic.
+    ///
+    /// Returns a `Result<i32, &str>` indicating either a value or an error message.
     fn evaluate_expression(&self, expr: &str) -> Result<i32, &'static str> {
         // Check if it's a simple number
         if let Ok(num) = expr.parse::<i32>() {
@@ -339,7 +357,9 @@ impl VimEditor {
 
         Err("Invalid expression format")
     }
-
+    /// Gets the value of a referenced cell by name (e.g., "A1").
+    ///
+    /// Returns `Ok(value)` or an `Err` if the reference is invalid.
     fn get_cell_value(&self, cell_ref: &str) -> Result<i32, &'static str> {
         let col_end = cell_ref
             .chars()
@@ -375,7 +395,7 @@ impl VimEditor {
 
         Ok(cell.value)
     }
-
+    /// Updates all cells that depend on a changed cell, recursively.
     fn update_dependent_cells(&mut self, changed_cell_idx: usize) {
         let (changed_row, changed_col) = self.sheet.borrow().get_row_and_column(changed_cell_idx);
         let changed_cell_ref = format!(
@@ -423,6 +443,7 @@ impl VimEditor {
             }
         }
     }
+    /// Undoes the last cell modification transaction.
     fn undo(&mut self) {
         if let Some(transaction) = self.undo_stack.pop() {
             let mut redo_transaction = Vec::new();
@@ -458,7 +479,7 @@ impl VimEditor {
             self.redo_stack.push(redo_transaction);
         }
     }
-
+    /// Redoes the last cell modification transaction.
     fn redo(&mut self) {
         if let Some(transaction) = self.redo_stack.pop() {
             let mut undo_transaction = Vec::new();
@@ -494,6 +515,9 @@ impl VimEditor {
             self.undo_stack.push(undo_transaction);
         }
     }
+    /// Parses a token into a value, which may be a number or a cell reference.
+    ///
+    /// Returns `Ok(value)` or `Err` if the token is invalid.
     fn parse_token(&self, token: &str) -> Result<i32, &'static str> {
         // If token is a cell reference
         if !token.is_empty() && token.chars().next().unwrap_or(' ').is_ascii_alphabetic() {

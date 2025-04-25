@@ -1,4 +1,6 @@
 // main.rs
+//! This module is the entry point for the spreadsheet system.
+#![cfg(not(tarpaulin_include))]
 #![allow(warnings)] //disable warnings
 use crossterm::{ExecutableCommand, terminal};
 use std::cell::RefCell;
@@ -24,13 +26,21 @@ use crate::info::{CellInfo, Info};
 use crate::parser::ParserContext;
 use crate::status::{StatusCode, print_status, set_status_code, start_time};
 
+/// Represents a single entry in the undo/redo history.
 struct HistoryEntry {
+    /// The cell index where the change occurred.
     cell_idx: usize,
+    /// Information about the command execution.
     info: Info,
+    /// The previous value before the change.
     value: i32,
+    /// Whether literal mode was enabled.
     literal_mode: bool,
 }
-
+/// The main function that runs the spreadsheet application.
+///
+/// # Returns
+/// An `io::Result<()>` indicating success or failure.
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     // Check for vim flag
@@ -248,7 +258,10 @@ fn main() -> io::Result<()> {
         }
     }
 }
-
+/// Reads a command from standard input.
+///
+/// # Returns
+/// The trimmed command as a `String`.
 fn read_command() -> io::Result<String> {
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;

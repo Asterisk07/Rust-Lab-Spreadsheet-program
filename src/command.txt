@@ -1,2 +1,4 @@
  cargo run 5 5 --vim
- cargo run --bin 5 6
+ cargo run --bin sheet 5 6
+ cargo tarpaulin --tests compare::tests
+cargo test compare::tests
