@@ -2,46 +2,9 @@
 COP290 2024-2025 Sem II, C Lab: Spreadsheet program.
 
 --------------------------------
-currently:
-The project includes a Vim-like text editor with 3 versions:  
-
-1. **Simple version:**  
-    - Tested this, features work.
-    - Doesnt support :h command.
-   ```bash
-   cargo run --bin main_simple
-   ```  
-
-1. **Simple version: with help**  
-    - Added :h to simple version
-    - Cudnt test other features whether they broke or not.
-   ```bash
-   cargo run --bin main_simple_help
-   ```  
-
-2. **Advanced version:**  
-   ```bash
-   cargo run --bin main_new
-   ```  
-3. **Advanced version:**  
-   ```bash
-   cargo chart --bin chart
-   ```  
-
-💡 *Note:*  
-- To see list of features, type : 
-```bash
-:h
-```
-- The `main_new` version was created to add new features without affecting the original code. Some older features broke during development, so a separate file was made.  
-- Both versions share some common features, while others are unique to each.  
-
-### ⚙️ **Setup:**  
-To build the project, run:  
-```bash
-cargo build
-```
-
+for terminal spreadsheet: cargo run --bin sheet 5 6
+for vim spreadsheet: cargo run 5 5 --vim
+also for vim :
 ## 📖 **Help Menu**
 
 #### 🛠️ **main_simple_help**

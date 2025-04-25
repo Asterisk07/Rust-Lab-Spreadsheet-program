@@ -16,5 +16,17 @@ build:
 clean:
 	cargo clean
 
-# Phony targets to avoid conflicts with files named 'all', 'build', or 'clean'
-.PHONY: all build clean
+test: ./src Cargo.toml
+	cargo test 
+
+docs: ./src report.tex Cargo.toml
+	cargo doc 
+	pdflatex report.tex
+
+coverage: src Cargo.toml
+	cargo tarpaulin --release
+
+ext1: src Cargo.toml
+	cargo run 10 10 --vim
+
+.PHONY: all build clean test docs coverage ext1

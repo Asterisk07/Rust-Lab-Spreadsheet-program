@@ -11,11 +11,17 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4   
+    
+    # Add this step to install system dependencies
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libfontconfig1-dev
+
     - name: Build
       run: cargo build --verbose
     - name: Run tests
