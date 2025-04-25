@@ -12,7 +12,7 @@ use crate::status::StatusCode;
 // pub const N_MAX: usize = 999;
 // pub const M_MAX: usize = 18278;
 
-pub const N_GLOBAL_MAX: usize = 999;
+pub const N_GLOBAL_MAX: usize = 1000;
 pub const M_GLOBAL_MAX: usize = 18278;
 
 // pub static mut M_MAX: usize = 0;
@@ -189,23 +189,3 @@ pub fn is_valid_range(cell1: usize, cell2: usize) -> bool {
         && (cell1 % M_MAX()) <= (cell2 % M_MAX())
         && (cell1 / M_MAX()) <= (cell2 / M_MAX())
 }
-// // These functions are needed by parser.rs
-// pub fn get_cell(row: usize, col: usize) -> usize {
-//     row * crate::sheet::M_MAX + col
-// }
-
-// pub fn get_row_and_column(cell: usize) -> (usize, usize) {
-//     let row = cell / crate::sheet::M_MAX;
-//     let col = cell % crate::sheet::M_MAX;
-//     (row, col)
-// }
-
-// pub fn is_valid_cell(row: usize, col: usize) -> bool {
-//     row < crate::sheet::N_MAX && col < crate::sheet::M_MAX
-// }
-
-// pub fn is_valid_range(cell1: usize, cell2: usize) -> bool {
-//     cell1 <= cell2
-//         && (cell1 % crate::sheet::M_MAX) <= (cell2 % crate::sheet::M_MAX)
-//         && (cell1 / crate::sheet::M_MAX) <= (cell2 / crate::sheet::M_MAX)
-// }

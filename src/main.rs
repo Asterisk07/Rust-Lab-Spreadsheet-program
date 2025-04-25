@@ -19,10 +19,10 @@ mod status;
 mod vector;
 mod vim;
 
-use info::CommandInfo;
-use info::{CellInfo, Info};
-use parser::ParserContext;
-use status::{StatusCode, print_status, set_status_code, start_time};
+use crate::info::CommandInfo;
+use crate::info::{CellInfo, Info};
+use crate::parser::ParserContext;
+use crate::status::{StatusCode, print_status, set_status_code, start_time};
 
 struct HistoryEntry {
     cell_idx: usize,
