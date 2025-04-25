@@ -17,6 +17,7 @@ mod parser;
 mod sheet;
 mod status;
 mod vector;
+mod vim;
 
 use info::CommandInfo;
 use info::{CellInfo, Info};
@@ -32,9 +33,22 @@ struct HistoryEntry {
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
-        eprintln!("Invalid arguments\nUsage: {} <rows> <columns>", args[0]);
-        return Ok(());
+    // Check for vim flag
+    let vim_mode = args.iter().any(|arg| arg == "--vim");
+
+    if vim_mode {
+        if args.len() < 3 {
+            eprintln!(
+                "Vim mode : Invalid arguments\nUsage: {} <rows> <columns> [--vim]",
+                args[0]
+            );
+            return Ok(());
+        }
+    } else {
+        if args.len() != 3 {
+            eprintln!("Invalid arguments\nUsage: {} <rows> <columns>", args[0]);
+            return Ok(());
+        }
     }
 
     let (n, m) = match sheet::parse_dimensions(&args[1], &args[2]) {
@@ -48,9 +62,6 @@ fn main() -> io::Result<()> {
     unsafe {
         sheet::init_dimensions(m, n);
     }
-    // undo-redo stack initialization !!!
-    let mut undo_stack: Vec<HistoryEntry> = Vec::new();
-    let mut redo_stack: Vec<HistoryEntry> = Vec::new();
 
     // Initialize memory pool
     let mem_pool = Rc::new(RefCell::new(list::ListMemPool::new()));
@@ -61,6 +72,20 @@ fn main() -> io::Result<()> {
 
     // Initialize graph
     let mut graph = graph::Graph::new(n, m, sheet.clone(), mem_pool.clone());
+
+    // If vim mode flag is present, run in vim mode
+    if vim_mode {
+        // let mut vim_editor = vim::VimEditor::new(sheet.clone());
+        // return vim_editor.run();
+        // let graph = Rc::new(RefCell::new(graph));
+        // let mut vim_editor = vim::VimEditor::new(sheet.clone(), graph);
+        let mut vim_editor = vim::VimEditor::new(sheet.clone());
+        return vim_editor.run();
+    }
+
+    // undo-redo stack initialization !!!
+    let mut undo_stack: Vec<HistoryEntry> = Vec::new();
+    let mut redo_stack: Vec<HistoryEntry> = Vec::new();
 
     let mut parser_ctx = ParserContext::new();
     let mut stdout = io::stdout();
@@ -229,4 +254,3 @@ fn read_command() -> io::Result<String> {
     io::stdin().read_line(&mut input)?;
     Ok(input.trim().to_string())
 }
-
