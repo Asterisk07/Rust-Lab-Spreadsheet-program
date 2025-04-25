@@ -1,1 +1,0 @@
- cargo run 5 5 --vim
