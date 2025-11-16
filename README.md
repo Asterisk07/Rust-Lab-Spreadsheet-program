@@ -1,6 +1,8 @@
 # Rust-Lab-Spreadsheet-program
 COP290 2024-2025 Sem II, C Lab: Spreadsheet program.
 
+Demo video:
+https://www.youtube.com/watch?v=U-jtmYDXNxA
 --------------------------------
 for terminal spreadsheet: cargo run --bin sheet 5 6
 for vim spreadsheet: cargo run 5 5 --vim
